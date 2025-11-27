@@ -1,11 +1,24 @@
-import { getWorkoutByDay, getWorkouts } from '@/lib/db/queries';
+import { getWorkoutByDay, getWorkouts, getWorkoutWithExercises } from '@/lib/db/queries';
 import { getWorkoutDayFromCurrent } from '@/lib/utils/workout';
 import { WorkoutTracker } from './workout-tracker';
 
-export default async function WorkoutPage() {
-  const currentDay = getWorkoutDayFromCurrent();
-  const workout = await getWorkoutByDay(currentDay);
+interface WorkoutPageProps {
+  searchParams: { id?: string };
+}
+
+export default async function WorkoutPage({ searchParams }: WorkoutPageProps) {
   const allWorkouts = await getWorkouts();
+
+  let workout;
+
+  if (searchParams.id) {
+    // Manual selection via dropdown
+    workout = await getWorkoutWithExercises(parseInt(searchParams.id));
+  } else {
+    // Auto-detect by day
+    const currentDay = getWorkoutDayFromCurrent();
+    workout = await getWorkoutByDay(currentDay);
+  }
 
   if (!workout) {
     return (
