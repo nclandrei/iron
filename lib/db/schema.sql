@@ -1,0 +1,36 @@
+-- Workouts table: 4 workout templates
+CREATE TABLE IF NOT EXISTS workouts (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(50) NOT NULL,
+  day_of_week INTEGER NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Exercises table: exercises within each workout
+CREATE TABLE IF NOT EXISTS exercises (
+  id SERIAL PRIMARY KEY,
+  workout_id INTEGER NOT NULL REFERENCES workouts(id) ON DELETE CASCADE,
+  order_index INTEGER NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  target_sets INTEGER NOT NULL,
+  target_reps_min INTEGER NOT NULL,
+  target_reps_max INTEGER NOT NULL,
+  default_weight DECIMAL(5,1) NOT NULL
+);
+
+-- Workout logs table: append-only set logging
+CREATE TABLE IF NOT EXISTS workout_logs (
+  id SERIAL PRIMARY KEY,
+  workout_id INTEGER NOT NULL REFERENCES workouts(id),
+  exercise_id INTEGER NOT NULL REFERENCES exercises(id),
+  logged_at TIMESTAMP DEFAULT NOW(),
+  set_number INTEGER NOT NULL,
+  reps INTEGER NOT NULL,
+  weight DECIMAL(5,1) NOT NULL
+);
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_workout_logs_exercise ON workout_logs(exercise_id, logged_at DESC);
+CREATE INDEX IF NOT EXISTS idx_workout_logs_workout ON workout_logs(workout_id, logged_at DESC);
+CREATE INDEX IF NOT EXISTS idx_exercises_workout ON exercises(workout_id, order_index);
