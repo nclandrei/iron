@@ -27,7 +27,7 @@ export function Nav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background md:top-0 md:bottom-auto md:border-b md:border-t-0">
+    <nav aria-label="Main navigation" className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background md:top-0 md:bottom-auto md:border-b md:border-t-0">
       <div className="container mx-auto">
         <div className="flex justify-around md:justify-center md:gap-8 md:py-4">
           {routes.map((route) => {
@@ -38,14 +38,16 @@ export function Nav() {
               <Link
                 key={route.href}
                 href={route.href}
+                aria-current={isActive ? 'page' : undefined}
                 className={cn(
-                  'flex flex-col items-center gap-1 py-3 px-6 text-sm transition-colors md:flex-row md:gap-2',
+                  'flex flex-col items-center gap-1 py-4 px-6 text-sm transition-colors md:flex-row md:gap-2 md:py-3',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                   isActive
                     ? 'text-primary font-semibold'
                     : 'text-muted-foreground hover:text-primary'
                 )}
               >
-                <Icon className="h-5 w-5" />
+                <Icon className="h-5 w-5" aria-hidden="true" />
                 <span>{route.label}</span>
               </Link>
             );
