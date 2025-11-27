@@ -11,7 +11,8 @@ async function seed() {
         name VARCHAR(50) NOT NULL,
         day_of_week INTEGER NOT NULL,
         created_at TIMESTAMP DEFAULT NOW(),
-        updated_at TIMESTAMP DEFAULT NOW()
+        updated_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(name, day_of_week)
       );
     `;
 
@@ -25,7 +26,8 @@ async function seed() {
         target_sets INTEGER NOT NULL,
         target_reps_min INTEGER NOT NULL,
         target_reps_max INTEGER NOT NULL,
-        default_weight DECIMAL(5,1) NOT NULL
+        default_weight DECIMAL(5,1) NOT NULL,
+        UNIQUE(workout_id, order_index)
       );
     `;
 
@@ -61,7 +63,7 @@ async function seed() {
       await sql`
         INSERT INTO workouts (name, day_of_week)
         VALUES (${workout.name}, ${workout.day})
-        ON CONFLICT DO NOTHING;
+        ON CONFLICT (name, day_of_week) DO NOTHING;
       `;
     }
 
@@ -129,7 +131,7 @@ async function seed() {
         await sql`
           INSERT INTO exercises (workout_id, order_index, name, target_sets, target_reps_min, target_reps_max, default_weight)
           VALUES (${workoutId}, ${i + 1}, ${ex.name}, ${ex.sets}, ${ex.repsMin}, ${ex.repsMax}, ${ex.weight})
-          ON CONFLICT DO NOTHING;
+          ON CONFLICT (workout_id, order_index) DO NOTHING;
         `;
       }
     }

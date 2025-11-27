@@ -4,7 +4,8 @@ CREATE TABLE IF NOT EXISTS workouts (
   name VARCHAR(50) NOT NULL,
   day_of_week INTEGER NOT NULL,
   created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
+  updated_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(name, day_of_week)
 );
 
 -- Exercises table: exercises within each workout
@@ -16,7 +17,8 @@ CREATE TABLE IF NOT EXISTS exercises (
   target_sets INTEGER NOT NULL,
   target_reps_min INTEGER NOT NULL,
   target_reps_max INTEGER NOT NULL,
-  default_weight DECIMAL(5,1) NOT NULL
+  default_weight DECIMAL(5,1) NOT NULL,
+  UNIQUE(workout_id, order_index)
 );
 
 -- Workout logs table: append-only set logging
