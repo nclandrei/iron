@@ -33,6 +33,16 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
   const maxSets = currentExercise.targetSets + (extraSetUsed ? 0 : 1); // Allow 1 extra
   const completedTargetSets = currentSet > currentExercise.targetSets;
 
+  // Sync workout state when initialWorkout prop changes
+  useEffect(() => {
+    setWorkout(initialWorkout);
+    setExerciseIndex(0);
+    setCurrentSet(1);
+    setExtraSetUsed(false);
+    setIsComplete(false);
+    setTotalSetsLogged(0);
+  }, [initialWorkout]);
+
   // Load last logged values for current exercise
   useEffect(() => {
     async function loadLastLog() {

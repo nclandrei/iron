@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,6 +16,12 @@ interface SetLoggerProps {
 export function SetLogger({ onLogSet, defaultReps, defaultWeight, isLoading }: SetLoggerProps) {
   const [reps, setReps] = useState(defaultReps?.toString() || '');
   const [weight, setWeight] = useState(defaultWeight?.toString() || '');
+
+  // Update state when default values change (e.g., moving to next exercise)
+  useEffect(() => {
+    setReps(defaultReps?.toString() || '');
+    setWeight(defaultWeight?.toString() || '');
+  }, [defaultReps, defaultWeight]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
