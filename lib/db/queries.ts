@@ -22,6 +22,11 @@ export async function getWorkouts(): Promise<Workout[]> {
 export async function getWorkoutWithExercises(
   workoutId: number
 ): Promise<WorkoutWithExercises | null> {
+  // Validate workoutId is a positive number
+  if (!Number.isInteger(workoutId) || workoutId <= 0) {
+    throw new Error('workoutId must be a positive integer');
+  }
+
   const { rows: workoutRows } = await sql`
     SELECT id, name, day_of_week as "dayOfWeek", created_at as "createdAt", updated_at as "updatedAt"
     FROM workouts
@@ -71,6 +76,11 @@ export async function getWorkoutByDay(
 export async function getLastLogForExercise(
   exerciseId: number
 ): Promise<{ reps: number; weight: number } | null> {
+  // Validate exerciseId is a positive number
+  if (!Number.isInteger(exerciseId) || exerciseId <= 0) {
+    throw new Error('exerciseId must be a positive integer');
+  }
+
   const { rows } = await sql`
     SELECT reps, weight
     FROM workout_logs
@@ -116,6 +126,16 @@ export async function getWorkoutHistory(
     }>;
   }>
 > {
+  // Validate workoutId is a positive number
+  if (!Number.isInteger(workoutId) || workoutId <= 0) {
+    throw new Error('workoutId must be a positive integer');
+  }
+
+  // Validate limit is a positive number with reasonable maximum
+  if (!Number.isInteger(limit) || limit <= 0 || limit > 100) {
+    throw new Error('limit must be a positive integer between 1 and 100');
+  }
+
   const { rows } = await sql`
     SELECT
       DATE(wl.logged_at) as date,
@@ -144,7 +164,7 @@ export async function getWorkoutHistory(
   >();
 
   for (const row of rows as any[]) {
-    const dateStr = new Date(row.date).toISOString().split('T')[0];
+    const dateStr = row.date;
 
     if (!grouped.has(dateStr)) {
       grouped.set(dateStr, new Map());
@@ -182,6 +202,11 @@ export async function getWorkoutHistory(
 export async function getExerciseHistory(
   exerciseId: number
 ): Promise<Array<{ date: string; setNumber: number; reps: number; weight: number }>> {
+  // Validate exerciseId is a positive number
+  if (!Number.isInteger(exerciseId) || exerciseId <= 0) {
+    throw new Error('exerciseId must be a positive integer');
+  }
+
   const { rows } = await sql`
     SELECT
       DATE(logged_at) as date,
@@ -206,6 +231,16 @@ export async function updateExercise(
     >
   >
 ): Promise<Exercise> {
+  // Validate exerciseId is a positive number
+  if (!Number.isInteger(exerciseId) || exerciseId <= 0) {
+    throw new Error('exerciseId must be a positive integer');
+  }
+
+  // Validate name length if provided (max 100 chars per schema)
+  if (data.name !== undefined && (typeof data.name !== 'string' || data.name.length === 0 || data.name.length > 100)) {
+    throw new Error('name must be a non-empty string with max length of 100 characters');
+  }
+
   const updates: string[] = [];
   const values: any[] = [];
   let paramCount = 1;
@@ -253,11 +288,22 @@ export async function updateExercise(
   `;
 
   const result = await sql.query(query, values);
+
+  // Check if exercise was found and updated
+  if (result.rows.length === 0) {
+    throw new Error(`Exercise with id ${exerciseId} not found`);
+  }
+
   return result.rows[0] as Exercise;
 }
 
 // Delete exercise
 export async function deleteExercise(exerciseId: number): Promise<void> {
+  // Validate exerciseId is a positive number
+  if (!Number.isInteger(exerciseId) || exerciseId <= 0) {
+    throw new Error('exerciseId must be a positive integer');
+  }
+
   await sql`DELETE FROM exercises WHERE id = ${exerciseId};`;
 }
 
@@ -266,6 +312,16 @@ export async function addExercise(
   workoutId: number,
   exercise: Omit<Exercise, 'id' | 'workoutId'>
 ): Promise<Exercise> {
+  // Validate workoutId is a positive number
+  if (!Number.isInteger(workoutId) || workoutId <= 0) {
+    throw new Error('workoutId must be a positive integer');
+  }
+
+  // Validate name length (max 100 chars per schema)
+  if (typeof exercise.name !== 'string' || exercise.name.length === 0 || exercise.name.length > 100) {
+    throw new Error('name must be a non-empty string with max length of 100 characters');
+  }
+
   const { rows } = await sql`
     INSERT INTO exercises (workout_id, order_index, name, target_sets, target_reps_min, target_reps_max, default_weight)
     VALUES (
@@ -287,6 +343,11 @@ export async function addExercise(
       target_reps_max as "targetRepsMax",
       default_weight as "defaultWeight";
   `;
+
+  // Check if insertion succeeded
+  if (rows.length === 0) {
+    throw new Error('Failed to insert exercise');
+  }
 
   return rows[0] as Exercise;
 }
