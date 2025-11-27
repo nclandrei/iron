@@ -1,0 +1,44 @@
+'use server';
+
+import { revalidatePath } from 'next/cache';
+import { updateExercise, deleteExercise, addExercise } from '@/lib/db/queries';
+import type { Exercise } from '@/lib/types';
+
+export async function updateExerciseAction(
+  exerciseId: number,
+  data: Partial<Pick<Exercise, 'name' | 'targetSets' | 'targetRepsMin' | 'targetRepsMax' | 'defaultWeight'>>
+) {
+  try {
+    const exercise = await updateExercise(exerciseId, data);
+    revalidatePath('/manage');
+    return { success: true, exercise };
+  } catch (error) {
+    console.error('Error updating exercise:', error);
+    return { success: false, error: 'Failed to update exercise' };
+  }
+}
+
+export async function deleteExerciseAction(exerciseId: number) {
+  try {
+    await deleteExercise(exerciseId);
+    revalidatePath('/manage');
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting exercise:', error);
+    return { success: false, error: 'Failed to delete exercise' };
+  }
+}
+
+export async function addExerciseAction(
+  workoutId: number,
+  exercise: Omit<Exercise, 'id' | 'workoutId'>
+) {
+  try {
+    const newExercise = await addExercise(workoutId, exercise);
+    revalidatePath('/manage');
+    return { success: true, exercise: newExercise };
+  } catch (error) {
+    console.error('Error adding exercise:', error);
+    return { success: false, error: 'Failed to add exercise' };
+  }
+}
