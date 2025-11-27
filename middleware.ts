@@ -2,15 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getIronSession } from 'iron-session';
 import { SessionData } from './lib/auth/session';
-
-const sessionOptions = {
-  password: process.env.SESSION_SECRET!,
-  cookieName: 'workout_session',
-  cookieOptions: {
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 60 * 60 * 24 * 365 * 10,
-  },
-};
+import { sessionOptions } from './lib/auth/config';
 
 export async function middleware(request: NextRequest) {
   const response = NextResponse.next();
