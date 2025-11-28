@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import type { WorkoutWithExercises, Workout } from '@/lib/types';
-import { logSetAction, getLastLogAction } from './actions';
+import { logSetAction, getLastLogAction, getWorkoutAction } from './actions';
 import { ExerciseDisplay } from '@/components/workout/exercise-display';
 import { SetLogger } from '@/components/workout/set-logger';
 import { Button } from '@/components/ui/button';
@@ -101,9 +101,28 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
     }
   }
 
-  function handleChangeWorkout(workoutId: string) {
-    router.push(`/workout?id=${workoutId}`);
-    router.refresh();
+  async function handleChangeWorkout(workoutId: string) {
+    setIsLoading(true);
+
+    const result = await getWorkoutAction(parseInt(workoutId));
+
+    if (!result.success || !result.workout) {
+      toast.error(result.error || 'Failed to load workout');
+      setIsLoading(false);
+      return;
+    }
+
+    // Update state with new workout
+    setWorkout(result.workout);
+    setExerciseIndex(0);
+    setCurrentSet(1);
+    setExtraSetUsed(false);
+    setIsComplete(false);
+    setTotalSetsLogged(0);
+    setIsLoading(false);
+
+    // Update URL for deep linking
+    router.push(`/workout?id=${workoutId}`, { scroll: false });
   }
 
   if (isComplete) {
