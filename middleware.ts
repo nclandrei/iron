@@ -1,24 +1,20 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { getIronSession } from 'iron-session';
-import { SessionData } from './lib/auth/session';
-import { sessionOptions } from './lib/auth/config';
 
 export async function middleware(request: NextRequest) {
-  const response = NextResponse.next();
-  const session = await getIronSession<SessionData>(request, response, sessionOptions);
-
-  // Allow access to login page
-  if (request.nextUrl.pathname === '/login') {
-    return response;
+  // Allow access to login page and API routes
+  if (request.nextUrl.pathname === '/login' || request.nextUrl.pathname.startsWith('/api')) {
+    return NextResponse.next();
   }
 
-  // Check if authenticated
-  if (!session.isAuthenticated) {
+  // Check for session cookie
+  const sessionCookie = request.cookies.get('workout_session');
+
+  if (!sessionCookie) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  return response;
+  return NextResponse.next();
 }
 
 export const config = {
