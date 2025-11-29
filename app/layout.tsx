@@ -6,38 +6,37 @@ import { Toaster } from "@/components/ui/sonner";
 import { isAuthenticated } from "@/lib/auth/session";
 
 const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+    variable: "--font-geist-sans",
+    subsets: ["latin"],
 });
 
 const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+    variable: "--font-geist-mono",
+    subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: "Workout Tracker",
-  description: "Personal workout tracking app",
+    title: "Iron",
 };
 
 export default async function RootLayout({
-  children,
+    children,
 }: Readonly<{
-  children: React.ReactNode;
+    children: React.ReactNode;
 }>) {
-  const authenticated = await isAuthenticated();
+    const authenticated = await isAuthenticated();
 
-  return (
-    <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {authenticated && <Nav />}
-        <main className={authenticated ? "pb-20 md:pb-0 md:pt-20" : ""}>
-          {children}
-        </main>
-        <Toaster />
-      </body>
-    </html>
-  );
+    return (
+        <html lang="en">
+            <body
+                className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+            >
+                {authenticated && <Nav />}
+                <main className={authenticated ? "pb-20 md:pb-0 md:pt-20" : ""}>
+                    {children}
+                </main>
+                <Toaster />
+            </body>
+        </html>
+    );
 }
