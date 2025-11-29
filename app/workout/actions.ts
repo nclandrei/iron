@@ -7,7 +7,6 @@ import type { SetLogInput } from '@/lib/types';
 export async function logSetAction(input: SetLogInput) {
   try {
     const log = await dbLogSet(input);
-    revalidatePath('/workout');
     return { success: true, log };
   } catch (error) {
     console.error('Error logging set:', error);
