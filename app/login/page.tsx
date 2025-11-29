@@ -23,12 +23,14 @@ export default function LoginPage() {
       const result = await loginAction(formData);
       if (result?.error) {
         setError(result.error);
-        toast.error(result.error);
       }
+      // If no error, redirect() was called in the action and will navigate
     } catch (err) {
-      const errorMsg = 'An error occurred. Please try again.';
-      setError(errorMsg);
-      toast.error(errorMsg);
+      // redirect() throws NEXT_REDIRECT error - don't show it as an error
+      if (err && typeof err === 'object' && 'digest' in err && String(err.digest).startsWith('NEXT_REDIRECT')) {
+        return; // This is a successful redirect, not an error
+      }
+      setError('An error occurred. Please try again.');
     } finally {
       setIsLoading(false);
     }
