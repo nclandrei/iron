@@ -138,7 +138,7 @@ export async function getWorkoutHistory(
 
   const { rows } = await sql`
     SELECT
-      DATE(wl.logged_at) as date,
+      DATE(wl.logged_at)::text as date,
       wl.exercise_id as "exerciseId",
       e.name as "exerciseName",
       wl.set_number as "setNumber",
@@ -164,7 +164,7 @@ export async function getWorkoutHistory(
   >();
 
   for (const row of rows as any[]) {
-    const dateStr = row.date;
+    const dateStr = String(row.date);
 
     if (!grouped.has(dateStr)) {
       grouped.set(dateStr, new Map());
