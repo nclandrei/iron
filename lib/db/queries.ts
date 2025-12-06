@@ -146,7 +146,7 @@ export async function getWorkoutHistory(
     exercises: Array<{
       exerciseId: number;
       exerciseName: string;
-      sets: Array<{ setNumber: number; reps: number; weight: number }>;
+      sets: Array<{ id: number; setNumber: number; reps: number; weight: number }>;
     }>;
   }>
 > {
@@ -163,6 +163,7 @@ export async function getWorkoutHistory(
   const { rows } = await sql`
     SELECT
       DATE(wl.logged_at)::text as date,
+      wl.id,
       wl.exercise_id as "exerciseId",
       e.name as "exerciseName",
       wl.set_number as "setNumber",
@@ -184,7 +185,7 @@ export async function getWorkoutHistory(
         {
           exerciseId: number;
           exerciseName: string;
-          sets: Array<{ setNumber: number; reps: number; weight: number }>;
+          sets: Array<{ id: number; setNumber: number; reps: number; weight: number }>;
         }
       >;
       timestamps: Date[];
@@ -213,6 +214,7 @@ export async function getWorkoutHistory(
     }
 
     dateData.exerciseMap.get(row.exerciseId)!.sets.push({
+      id: row.id,
       setNumber: row.setNumber,
       reps: row.reps,
       weight: row.weight,
@@ -240,6 +242,62 @@ export async function getWorkoutHistory(
     });
 
   return result;
+}
+
+// Update workout log
+export async function updateWorkoutLog(
+  logId: number,
+  reps: number,
+  weight: number
+): Promise<WorkoutLog> {
+  if (!Number.isInteger(logId) || logId <= 0) {
+    throw new Error('logId must be a positive integer');
+  }
+
+  if (!Number.isInteger(reps) || reps <= 0) {
+    throw new Error('reps must be a positive integer');
+  }
+
+  if (typeof weight !== 'number' || weight < 0) {
+    throw new Error('weight must be a non-negative number');
+  }
+
+  const { rows } = await sql`
+    UPDATE workout_logs
+    SET reps = ${reps}, weight = ${weight}
+    WHERE id = ${logId}
+    RETURNING
+      id,
+      workout_id as "workoutId",
+      exercise_id as "exerciseId",
+      logged_at as "loggedAt",
+      set_number as "setNumber",
+      reps,
+      weight;
+  `;
+
+  if (rows.length === 0) {
+    throw new Error(`Workout log with id ${logId} not found`);
+  }
+
+  return rows[0] as WorkoutLog;
+}
+
+// Delete workout log
+export async function deleteWorkoutLog(logId: number): Promise<void> {
+  if (!Number.isInteger(logId) || logId <= 0) {
+    throw new Error('logId must be a positive integer');
+  }
+
+  const { rows } = await sql`
+    DELETE FROM workout_logs
+    WHERE id = ${logId}
+    RETURNING id;
+  `;
+
+  if (rows.length === 0) {
+    throw new Error(`Workout log with id ${logId} not found`);
+  }
 }
 
 // Get exercise history for charts (all time)

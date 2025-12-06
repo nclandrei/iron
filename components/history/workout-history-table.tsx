@@ -1,8 +1,9 @@
 import { getWorkoutHistory, getWorkoutWithExercises, getExerciseHistory } from '@/lib/db/queries';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatDistance } from 'date-fns';
 import { ExerciseChart } from './exercise-chart';
+import { EditableWorkoutCard } from './editable-workout-card';
 
 interface WorkoutHistoryTableProps {
   workoutId: number;
@@ -61,40 +62,16 @@ export async function WorkoutHistoryTable({ workoutId }: WorkoutHistoryTableProp
             return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
           };
 
-          return (
-            <Card key={session.date}>
-              <CardHeader>
-                <CardTitle className="text-xl">
-                  {dateStr}
-                  <span className="text-sm font-normal text-muted-foreground ml-2">
-                    ({relativeTime})
-                  </span>
-                  {session.durationMinutes !== null && (
-                    <span className="text-sm font-normal text-muted-foreground ml-2">
-                      • {formatDuration(session.durationMinutes)}
-                    </span>
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {session.exercises.map((exercise) => {
-                    const setsDisplay = exercise.sets
-                      .map((set) => `${set.reps}@${set.weight}kg`)
-                      .join(', ');
+          const durationStr = formatDuration(session.durationMinutes);
 
-                    return (
-                      <div key={exercise.exerciseId} className="flex justify-between items-start">
-                        <span className="font-medium">{exercise.exerciseName}</span>
-                        <span className="text-sm text-muted-foreground text-right">
-                          {exercise.sets.length}× [{setsDisplay}]
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
+          return (
+            <EditableWorkoutCard
+              key={session.date}
+              exercises={session.exercises}
+              dateStr={dateStr}
+              relativeTime={relativeTime}
+              durationStr={durationStr}
+            />
           );
         })}
       </TabsContent>
