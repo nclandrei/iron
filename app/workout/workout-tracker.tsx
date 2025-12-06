@@ -82,13 +82,25 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
 
   // Session restoration on mount
   useEffect(() => {
+    let isCancelled = false;
+
     async function restoreSession() {
       setIsRestoringSession(true);
+
+      // Capture workout ID at start to prevent race conditions
+      const currentWorkoutId = workout.id;
+      const currentExercises = workout.exercises;
 
       // Try to load from localStorage
       const savedSession = loadWorkoutSession();
 
-      if (savedSession && savedSession.workoutId === workout.id) {
+      if (savedSession && savedSession.workoutId === currentWorkoutId) {
+        // Verify workout hasn't changed before applying state
+        if (isCancelled || workout.id !== currentWorkoutId) {
+          setIsRestoringSession(false);
+          return;
+        }
+
         // Valid session for same workout and same day
         setExerciseIndex(savedSession.exerciseIndex);
         setCurrentSet(savedSession.currentSet);
@@ -99,20 +111,33 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
         setExerciseProgress(new Map(savedSession.exerciseProgress));
       } else {
         // No valid session - fetch today's logs from DB
-        const result = await getTodayLogsAction(workout.id);
+        const result = await getTodayLogsAction(currentWorkoutId);
+
+        // Verify workout hasn't changed while async operation was pending
+        if (isCancelled || workout.id !== currentWorkoutId) {
+          setIsRestoringSession(false);
+          return;
+        }
 
         if (result.success && result.logs && result.logs.length > 0) {
           // User logged sets today, rebuild progress
-          const progress = buildExerciseProgress(workout.exercises, result.logs as WorkoutLog[]);
+          const progress = buildExerciseProgress(currentExercises, result.logs as WorkoutLog[]);
           setExerciseProgress(progress);
 
           // Find current exercise (first incomplete exercise)
-          const currentExIdx = findCurrentExerciseIndex(workout.exercises, progress);
+          const currentExIdx = findCurrentExerciseIndex(currentExercises, progress);
           setExerciseIndex(currentExIdx);
 
           // Set current set based on exercise progress
-          const currentExProgress = progress.get(workout.exercises[currentExIdx].id);
-          setCurrentSet(currentExProgress ? currentExProgress.lastSetNumber + 1 : 1);
+          const currentExProgress = progress.get(currentExercises[currentExIdx].id);
+          const currentExercise = currentExercises[currentExIdx];
+          const lastSetNumber = currentExProgress ? currentExProgress.lastSetNumber : 0;
+          setCurrentSet(lastSetNumber + 1);
+          
+          // Restore extraSetUsed flag if current exercise has logged sets beyond target
+          const hasExtraSet = lastSetNumber > currentExercise.targetSets;
+          setExtraSetUsed(hasExtraSet);
+          
           setTotalSetsLogged(result.logs.length);
 
           // Set times from logs
@@ -130,6 +155,11 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
     }
 
     restoreSession();
+
+    // Cleanup function to cancel if workout changes
+    return () => {
+      isCancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workout.id]); // Only run when workout changes
 
@@ -146,10 +176,11 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
           weight: suggestion.suggestedWeight,
         });
         if (suggestion.shouldIncreaseWeight) {
-          const increment = suggestion.suggestedWeight - (result.lastLog?.weight ?? currentExercise.defaultWeight);
+          const lastWeight = result.lastLog?.weight ?? currentExercise.defaultWeight;
+          const increment = suggestion.suggestedWeight - lastWeight;
           setSuggestion({
             type: 'weight',
-            message: `Average reps above target - try increasing weight by ${increment}kg`,
+            message: `Average reps above target - try increasing weight by ${increment.toFixed(2)}kg`,
           });
         } else {
           setSuggestion({
