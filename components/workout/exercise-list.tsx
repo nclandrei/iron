@@ -44,7 +44,7 @@ export function ExerciseList({
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="outline" size="sm">
+        <Button variant="outline" className="h-9 px-3 py-2 shadow-xs font-normal">
           Exercises ({currentExerciseIndex + 1}/{exercises.length})
         </Button>
       </SheetTrigger>
@@ -54,7 +54,7 @@ export function ExerciseList({
           <SheetTitle>Exercises</SheetTitle>
         </SheetHeader>
 
-        <div className="mt-6 space-y-2">
+        <div className="mt-6 space-y-2 px-1">
           {exercises.map((exercise, index) => {
             const status = getExerciseStatus(exercise, index);
             const progress = exerciseProgress.get(exercise.id);
