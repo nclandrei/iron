@@ -11,9 +11,10 @@ interface SetLoggerProps {
   defaultReps?: number;
   defaultWeight?: number;
   isLoading?: boolean;
+  suggestion?: { type: 'weight' | 'reps'; message: string };
 }
 
-export function SetLogger({ onLogSet, defaultReps, defaultWeight, isLoading }: SetLoggerProps) {
+export function SetLogger({ onLogSet, defaultReps, defaultWeight, isLoading, suggestion }: SetLoggerProps) {
   const [reps, setReps] = useState(defaultReps?.toString() || '');
   const [weight, setWeight] = useState(defaultWeight?.toString() || '');
 
@@ -46,6 +47,11 @@ export function SetLogger({ onLogSet, defaultReps, defaultWeight, isLoading }: S
     <Card>
       <CardContent className="pt-6">
         <form onSubmit={handleSubmit} className="space-y-6">
+          {suggestion && (
+            <p className="text-sm text-muted-foreground text-center">
+              {suggestion.message}
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="reps" className="text-lg">Reps</Label>
@@ -67,12 +73,12 @@ export function SetLogger({ onLogSet, defaultReps, defaultWeight, isLoading }: S
                 id="weight"
                 type="number"
                 inputMode="decimal"
-                step="0.1"
+                step="0.25"
                 value={weight}
                 onChange={(e) => setWeight(e.target.value)}
                 className="text-2xl h-16 text-center"
                 min="0.1"
-                max="999.9"
+                max="999.99"
                 required
               />
             </div>

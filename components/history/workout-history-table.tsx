@@ -53,6 +53,14 @@ export async function WorkoutHistoryTable({ workoutId }: WorkoutHistoryTableProp
           });
           const relativeTime = formatDistance(date, new Date(), { addSuffix: true });
 
+          const formatDuration = (minutes: number | null) => {
+            if (minutes === null) return null;
+            if (minutes < 60) return `${minutes}m`;
+            const hours = Math.floor(minutes / 60);
+            const mins = minutes % 60;
+            return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+          };
+
           return (
             <Card key={session.date}>
               <CardHeader>
@@ -61,6 +69,11 @@ export async function WorkoutHistoryTable({ workoutId }: WorkoutHistoryTableProp
                   <span className="text-sm font-normal text-muted-foreground ml-2">
                     ({relativeTime})
                   </span>
+                  {session.durationMinutes !== null && (
+                    <span className="text-sm font-normal text-muted-foreground ml-2">
+                      • {formatDuration(session.durationMinutes)}
+                    </span>
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent>
