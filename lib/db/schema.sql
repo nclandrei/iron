@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS exercises (
   target_sets INTEGER NOT NULL,
   target_reps_min INTEGER NOT NULL,
   target_reps_max INTEGER NOT NULL,
-  default_weight DECIMAL(5,1) NOT NULL,
+  default_weight DECIMAL(5,2) NOT NULL,
   UNIQUE(workout_id, order_index)
 );
 
@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS workout_logs (
   logged_at TIMESTAMP DEFAULT NOW(),
   set_number INTEGER NOT NULL,
   reps INTEGER NOT NULL,
-  weight DECIMAL(5,1) NOT NULL
+  weight DECIMAL(5,2) NOT NULL
 );
 
 -- Indexes for performance

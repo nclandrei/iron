@@ -94,6 +94,29 @@ export async function getLastLogForExercise(
   return rows[0] as { reps: number; weight: number };
 }
 
+// Get average reps for an exercise in the past week
+export async function getExerciseAverageRepsPastWeek(
+  exerciseId: number
+): Promise<number | null> {
+  // Validate exerciseId is a positive number
+  if (!Number.isInteger(exerciseId) || exerciseId <= 0) {
+    throw new Error('exerciseId must be a positive integer');
+  }
+
+  const { rows } = await sql`
+    SELECT AVG(reps) as "averageReps"
+    FROM workout_logs
+    WHERE exercise_id = ${exerciseId}
+      AND logged_at >= NOW() - INTERVAL '7 days';
+  `;
+
+  if (rows.length === 0 || rows[0].averageReps === null) {
+    return null;
+  }
+
+  return parseFloat(rows[0].averageReps);
+}
+
 // Log a set
 export async function logSet(input: SetLogInput): Promise<WorkoutLog> {
   const { rows } = await sql`
@@ -119,6 +142,7 @@ export async function getWorkoutHistory(
 ): Promise<
   Array<{
     date: string;
+    durationMinutes: number | null;
     exercises: Array<{
       exerciseId: number;
       exerciseName: string;
@@ -143,57 +167,77 @@ export async function getWorkoutHistory(
       e.name as "exerciseName",
       wl.set_number as "setNumber",
       wl.reps,
-      wl.weight
+      wl.weight,
+      wl.logged_at as "loggedAt"
     FROM workout_logs wl
     JOIN exercises e ON e.id = wl.exercise_id
     WHERE wl.workout_id = ${workoutId}
     ORDER BY wl.logged_at DESC;
   `;
 
-  // Group by date and exercise
+  // Group by date and exercise, tracking timestamps for duration calculation
   const grouped = new Map<
     string,
-    Map<
-      number,
-      {
-        exerciseId: number;
-        exerciseName: string;
-        sets: Array<{ setNumber: number; reps: number; weight: number }>;
-      }
-    >
+    {
+      exerciseMap: Map<
+        number,
+        {
+          exerciseId: number;
+          exerciseName: string;
+          sets: Array<{ setNumber: number; reps: number; weight: number }>;
+        }
+      >;
+      timestamps: Date[];
+    }
   >();
 
   for (const row of rows as any[]) {
     const dateStr = String(row.date);
 
     if (!grouped.has(dateStr)) {
-      grouped.set(dateStr, new Map());
+      grouped.set(dateStr, {
+        exerciseMap: new Map(),
+        timestamps: [],
+      });
     }
 
-    const dateMap = grouped.get(dateStr)!;
+    const dateData = grouped.get(dateStr)!;
+    dateData.timestamps.push(new Date(row.loggedAt));
 
-    if (!dateMap.has(row.exerciseId)) {
-      dateMap.set(row.exerciseId, {
+    if (!dateData.exerciseMap.has(row.exerciseId)) {
+      dateData.exerciseMap.set(row.exerciseId, {
         exerciseId: row.exerciseId,
         exerciseName: row.exerciseName,
         sets: [],
       });
     }
 
-    dateMap.get(row.exerciseId)!.sets.push({
+    dateData.exerciseMap.get(row.exerciseId)!.sets.push({
       setNumber: row.setNumber,
       reps: row.reps,
       weight: row.weight,
     });
   }
 
-  // Convert to array and take last N sessions
+  // Convert to array, calculate duration, and take last N sessions
   const result = Array.from(grouped.entries())
     .slice(0, limit)
-    .map(([date, exerciseMap]) => ({
-      date,
-      exercises: Array.from(exerciseMap.values()),
-    }));
+    .map(([date, dateData]) => {
+      const timestamps = dateData.timestamps;
+      let durationMinutes: number | null = null;
+      if (timestamps.length > 0) {
+        const firstSet = new Date(Math.min(...timestamps.map((t) => t.getTime())));
+        const lastSet = new Date(Math.max(...timestamps.map((t) => t.getTime())));
+        const diffMs = lastSet.getTime() - firstSet.getTime();
+        durationMinutes = Math.round(diffMs / 1000 / 60);
+      }
+
+      return {
+        date,
+        durationMinutes,
+        exercises: Array.from(dateData.exerciseMap.values()),
+      };
+    });
 
   return result;
 }
