@@ -176,11 +176,9 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
           weight: suggestion.suggestedWeight,
         });
         if (suggestion.shouldIncreaseWeight) {
-          const lastWeight = result.lastLog?.weight ?? currentExercise.defaultWeight;
-          const increment = suggestion.suggestedWeight - lastWeight;
           setSuggestion({
             type: 'weight',
-            message: `Average reps above target - try increasing weight by ${increment.toFixed(2)}kg`,
+            message: `Average reps above target - try ${suggestion.suggestedWeight}kg`,
           });
         } else {
           setSuggestion({
