@@ -144,7 +144,7 @@ export function EditableWorkoutCard({
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle className="text-xl">
+          <CardTitle className="text-xl flex items-center">
             {dateStr}
             <span className="text-sm font-normal text-muted-foreground ml-2">
               ({relativeTime})
@@ -194,7 +194,7 @@ export function EditableWorkoutCard({
                         key={set.id}
                         className="flex items-center gap-3 text-sm"
                       >
-                        <span className="w-16 text-muted-foreground">
+                        <span className="w-16 text-muted-foreground text-right">
                           Set {set.setNumber}:
                         </span>
                         <Input
@@ -203,7 +203,7 @@ export function EditableWorkoutCard({
                           onChange={(e) =>
                             handleSetChange(exercise.exerciseId, set.id, 'reps', e.target.value)
                           }
-                          className="w-20 h-8"
+                          className="w-20 h-8 text-center"
                           min="1"
                         />
                         <span className="text-muted-foreground">reps @</span>
@@ -219,7 +219,7 @@ export function EditableWorkoutCard({
                               e.target.value
                             )
                           }
-                          className="w-20 h-8"
+                          className="w-20 h-8 text-center"
                           min="0"
                         />
                         <span className="text-muted-foreground">kg</span>
