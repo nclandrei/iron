@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import type { WorkoutWithExercises, Workout } from '@/lib/types';
-import { logSetAction, getLastLogAction, getWorkoutAction } from './actions';
+import { logSetAction, getLastLogAction, getWorkoutAction, getExerciseSuggestionAction } from './actions';
 import { ExerciseDisplay } from '@/components/workout/exercise-display';
 import { SetLogger } from '@/components/workout/set-logger';
 import { Button } from '@/components/ui/button';
@@ -27,6 +27,9 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
   const [defaultValues, setDefaultValues] = useState<{ reps?: number; weight?: number }>({});
   const [isComplete, setIsComplete] = useState(false);
   const [totalSetsLogged, setTotalSetsLogged] = useState(0);
+  const [firstSetTime, setFirstSetTime] = useState<Date | null>(null);
+  const [lastSetTime, setLastSetTime] = useState<Date | null>(null);
+  const [suggestion, setSuggestion] = useState<{ type: 'weight' | 'reps'; message: string } | undefined>();
 
   const currentExercise = workout.exercises[exerciseIndex];
   const isLastExercise = exerciseIndex === workout.exercises.length - 1;
@@ -41,28 +44,59 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
     setExtraSetUsed(false);
     setIsComplete(false);
     setTotalSetsLogged(0);
+    setFirstSetTime(null);
+    setLastSetTime(null);
   }, [initialWorkout]);
 
   // Load last logged values for current exercise
   useEffect(() => {
     async function loadLastLog() {
       const result = await getLastLogAction(currentExercise.id);
-      if (result.success && result.lastLog) {
+      const suggestionResult = await getExerciseSuggestionAction(currentExercise.id);
+
+      if (currentSet === 1 && suggestionResult.success && suggestionResult.suggestion) {
+        const suggestion = suggestionResult.suggestion;
         setDefaultValues({
-          reps: result.lastLog.reps,
-          weight: result.lastLog.weight,
+          reps: suggestion.suggestedReps,
+          weight: suggestion.suggestedWeight,
         });
+        if (suggestion.shouldIncreaseWeight) {
+          const increment = suggestion.suggestedWeight - (result.lastLog?.weight ?? currentExercise.defaultWeight);
+          setSuggestion({
+            type: 'weight',
+            message: `Average reps above target - try increasing weight by ${increment}kg`,
+          });
+        } else {
+          setSuggestion({
+            type: 'reps',
+            message: `Focus on reps - aim for ${suggestion.suggestedReps} reps`,
+          });
+        }
       } else {
-        setDefaultValues({
-          weight: currentExercise.defaultWeight,
-        });
+        setSuggestion(undefined);
+        if (result.success && result.lastLog) {
+          setDefaultValues({
+            reps: result.lastLog.reps,
+            weight: result.lastLog.weight,
+          });
+        } else {
+          setDefaultValues({
+            weight: currentExercise.defaultWeight,
+          });
+        }
       }
     }
     loadLastLog();
-  }, [currentExercise.id, currentExercise.defaultWeight]);
+  }, [currentExercise.id, currentExercise.defaultWeight, currentSet]);
 
   async function handleLogSet(reps: number, weight: number) {
     setIsLoading(true);
+
+    const now = new Date();
+    if (!firstSetTime) {
+      setFirstSetTime(now);
+    }
+    setLastSetTime(now);
 
     const result = await logSetAction({
       workoutId: workout.id,
@@ -119,6 +153,8 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
     setExtraSetUsed(false);
     setIsComplete(false);
     setTotalSetsLogged(0);
+    setFirstSetTime(null);
+    setLastSetTime(null);
     setIsLoading(false);
 
     // Update URL for deep linking
@@ -126,6 +162,18 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
   }
 
   if (isComplete) {
+    const formatDuration = (minutes: number) => {
+      if (minutes < 60) return `${minutes}m`;
+      const hours = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
+    };
+
+    const workoutDuration =
+      firstSetTime && lastSetTime
+        ? Math.round((lastSetTime.getTime() - firstSetTime.getTime()) / 1000 / 60)
+        : null;
+
     return (
       <div className="container mx-auto p-4 max-w-2xl">
         <Card className="mt-8">
@@ -133,6 +181,7 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
             <CardTitle className="text-3xl text-center">Workout Complete!</CardTitle>
             <CardDescription className="text-center text-lg">
               {workout.exercises.length} exercises, {totalSetsLogged} total sets
+              {workoutDuration !== null && ` • ${formatDuration(workoutDuration)}`}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -195,6 +244,7 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
           defaultReps={defaultValues.reps}
           defaultWeight={defaultValues.weight}
           isLoading={isLoading}
+          suggestion={currentSet === 1 ? suggestion : undefined}
         />
       )}
 
@@ -211,6 +261,7 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
                 defaultReps={defaultValues.reps}
                 defaultWeight={defaultValues.weight}
                 isLoading={isLoading}
+                suggestion={undefined}
               />
               <p className="text-center text-sm text-muted-foreground">
                 Feeling strong? Add one more set above, or move to next exercise below.
