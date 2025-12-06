@@ -2,14 +2,22 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import type { WorkoutWithExercises, Workout } from '@/lib/types';
-import { logSetAction, getLastLogAction, getWorkoutAction, getExerciseSuggestionAction } from './actions';
+import type { WorkoutWithExercises, Workout, ExerciseProgress, Exercise, WorkoutLog } from '@/lib/types';
+import { logSetAction, getLastLogAction, getWorkoutAction, getExerciseSuggestionAction, getTodayLogsAction } from './actions';
 import { ExerciseDisplay } from '@/components/workout/exercise-display';
 import { SetLogger } from '@/components/workout/set-logger';
+import { ExerciseList } from '@/components/workout/exercise-list';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
+import {
+  saveWorkoutSession,
+  loadWorkoutSession,
+  clearWorkoutSession,
+  buildExerciseProgress,
+  getTodayDate,
+} from '@/lib/utils/workout-session';
 
 interface WorkoutTrackerProps {
   initialWorkout: WorkoutWithExercises;
@@ -30,23 +38,100 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
   const [firstSetTime, setFirstSetTime] = useState<Date | null>(null);
   const [lastSetTime, setLastSetTime] = useState<Date | null>(null);
   const [suggestion, setSuggestion] = useState<{ type: 'weight' | 'reps'; message: string } | undefined>();
+  const [exerciseProgress, setExerciseProgress] = useState<Map<number, ExerciseProgress>>(new Map());
+  const [isRestoringSession, setIsRestoringSession] = useState(true);
 
   const currentExercise = workout.exercises[exerciseIndex];
   const isLastExercise = exerciseIndex === workout.exercises.length - 1;
   const maxSets = currentExercise.targetSets + (extraSetUsed ? 0 : 1); // Allow 1 extra
   const completedTargetSets = currentSet > currentExercise.targetSets;
 
-  // Sync workout state when initialWorkout prop changes
+  // Sync workout state when initialWorkout prop changes (only if workout ID actually changed)
+  // This handles cases where the URL changes directly (e.g., browser back/forward)
   useEffect(() => {
-    setWorkout(initialWorkout);
-    setExerciseIndex(0);
-    setCurrentSet(1);
-    setExtraSetUsed(false);
-    setIsComplete(false);
-    setTotalSetsLogged(0);
-    setFirstSetTime(null);
-    setLastSetTime(null);
-  }, [initialWorkout]);
+    if (workout.id !== initialWorkout.id) {
+      setWorkout(initialWorkout);
+      setExerciseIndex(0);
+      setCurrentSet(1);
+      setExtraSetUsed(false);
+      setIsComplete(false);
+      setTotalSetsLogged(0);
+      setFirstSetTime(null);
+      setLastSetTime(null);
+      setExerciseProgress(new Map());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialWorkout.id]);
+
+  // Helper function to find current exercise index based on progress
+  function findCurrentExerciseIndex(
+    exercises: Exercise[],
+    progress: Map<number, ExerciseProgress>
+  ): number {
+    for (let i = 0; i < exercises.length; i++) {
+      const ex = exercises[i];
+      const prog = progress.get(ex.id);
+
+      if (!prog || !prog.targetSetsCompleted) {
+        return i; // First incomplete exercise
+      }
+    }
+
+    return exercises.length - 1; // All complete, stay on last
+  }
+
+  // Session restoration on mount
+  useEffect(() => {
+    async function restoreSession() {
+      setIsRestoringSession(true);
+
+      // Try to load from localStorage
+      const savedSession = loadWorkoutSession();
+
+      if (savedSession && savedSession.workoutId === workout.id) {
+        // Valid session for same workout and same day
+        setExerciseIndex(savedSession.exerciseIndex);
+        setCurrentSet(savedSession.currentSet);
+        setExtraSetUsed(savedSession.extraSetUsed);
+        setTotalSetsLogged(savedSession.totalSetsLogged);
+        setFirstSetTime(savedSession.firstSetTime ? new Date(savedSession.firstSetTime) : null);
+        setLastSetTime(savedSession.lastSetTime ? new Date(savedSession.lastSetTime) : null);
+        setExerciseProgress(new Map(savedSession.exerciseProgress));
+      } else {
+        // No valid session - fetch today's logs from DB
+        const result = await getTodayLogsAction(workout.id);
+
+        if (result.success && result.logs && result.logs.length > 0) {
+          // User logged sets today, rebuild progress
+          const progress = buildExerciseProgress(workout.exercises, result.logs as WorkoutLog[]);
+          setExerciseProgress(progress);
+
+          // Find current exercise (first incomplete exercise)
+          const currentExIdx = findCurrentExerciseIndex(workout.exercises, progress);
+          setExerciseIndex(currentExIdx);
+
+          // Set current set based on exercise progress
+          const currentExProgress = progress.get(workout.exercises[currentExIdx].id);
+          setCurrentSet(currentExProgress ? currentExProgress.lastSetNumber + 1 : 1);
+          setTotalSetsLogged(result.logs.length);
+
+          // Set times from logs
+          const firstLog = result.logs[0];
+          const lastLog = result.logs[result.logs.length - 1];
+          setFirstSetTime(new Date(firstLog.loggedAt));
+          setLastSetTime(new Date(lastLog.loggedAt));
+        } else {
+          // Fresh start - clear any stale session
+          clearWorkoutSession();
+        }
+      }
+
+      setIsRestoringSession(false);
+    }
+
+    restoreSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workout.id]); // Only run when workout changes
 
   // Load last logged values for current exercise
   useEffect(() => {
@@ -89,6 +174,41 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
     loadLastLog();
   }, [currentExercise.id, currentExercise.defaultWeight, currentSet]);
 
+  // Auto-save session to localStorage
+  useEffect(() => {
+    // Don't save during restoration or if no sets logged yet
+    if (isRestoringSession || totalSetsLogged === 0) return;
+
+    // Debounce saves to avoid excessive writes
+    const timeoutId = setTimeout(() => {
+      const session = {
+        workoutId: workout.id,
+        exerciseIndex,
+        currentSet,
+        extraSetUsed,
+        totalSetsLogged,
+        firstSetTime: firstSetTime?.toISOString() ?? null,
+        lastSetTime: lastSetTime?.toISOString() ?? null,
+        sessionDate: getTodayDate(),
+        exerciseProgress: Array.from(exerciseProgress.entries()),
+      };
+
+      saveWorkoutSession(session);
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [
+    workout.id,
+    exerciseIndex,
+    currentSet,
+    extraSetUsed,
+    totalSetsLogged,
+    firstSetTime,
+    lastSetTime,
+    exerciseProgress,
+    isRestoringSession,
+  ]);
+
   async function handleLogSet(reps: number, weight: number) {
     setIsLoading(true);
 
@@ -116,6 +236,30 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
     toast.success(`Set logged! ${reps} reps @ ${weight}kg`);
 
     setTotalSetsLogged((prev) => prev + 1);
+
+    // Update exercise progress
+    setExerciseProgress((prev) => {
+      const updated = new Map(prev);
+      const existing = updated.get(currentExercise.id) || {
+        exerciseId: currentExercise.id,
+        completedSets: 0,
+        targetSetsCompleted: false,
+        lastSetNumber: 0,
+      };
+
+      const newCompletedSets = existing.completedSets + 1;
+      const targetReached = newCompletedSets >= currentExercise.targetSets;
+
+      updated.set(currentExercise.id, {
+        ...existing,
+        completedSets: newCompletedSets,
+        targetSetsCompleted: targetReached,
+        lastSetNumber: currentSet,
+      });
+
+      return updated;
+    });
+
     setCurrentSet((prev) => prev + 1);
     setDefaultValues({ reps, weight });
   }
@@ -127,6 +271,7 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
 
   function handleNextExercise() {
     if (isLastExercise) {
+      clearWorkoutSession();
       setIsComplete(true);
     } else {
       setExerciseIndex((prev) => prev + 1);
@@ -137,6 +282,9 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
 
   async function handleChangeWorkout(workoutId: string) {
     setIsLoading(true);
+
+    // Clear current session when switching workouts
+    clearWorkoutSession();
 
     const result = await getWorkoutAction(parseInt(workoutId));
 
@@ -155,10 +303,33 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
     setTotalSetsLogged(0);
     setFirstSetTime(null);
     setLastSetTime(null);
+    setExerciseProgress(new Map());
     setIsLoading(false);
 
     // Update URL for deep linking
-    router.push(`/workout?id=${workoutId}`, { scroll: false });
+    router.replace(`/workout?id=${workoutId}`, { scroll: false });
+  }
+
+  function handleSelectExercise(index: number) {
+    const targetExercise = workout.exercises[index];
+    const progress = exerciseProgress.get(targetExercise.id);
+
+    if (!progress) {
+      // Not started → Set 1
+      setExerciseIndex(index);
+      setCurrentSet(1);
+      setExtraSetUsed(false);
+    } else if (progress.targetSetsCompleted) {
+      // Completed → Review mode (next set after last)
+      setExerciseIndex(index);
+      setCurrentSet(progress.lastSetNumber + 1);
+      setExtraSetUsed(progress.lastSetNumber > targetExercise.targetSets);
+    } else {
+      // Partial → Continue mode (next set after last)
+      setExerciseIndex(index);
+      setCurrentSet(progress.lastSetNumber + 1);
+      setExtraSetUsed(false);
+    }
   }
 
   if (isComplete) {
@@ -211,18 +382,28 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
       {/* Workout selector */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">{workout.name}</h1>
-        <Select value={workout.id.toString()} onValueChange={handleChangeWorkout}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {allWorkouts.map((w) => (
-              <SelectItem key={w.id} value={w.id.toString()}>
-                {w.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+
+        <div className="flex items-center gap-2">
+          <ExerciseList
+            exercises={workout.exercises}
+            currentExerciseIndex={exerciseIndex}
+            exerciseProgress={exerciseProgress}
+            onSelectExercise={handleSelectExercise}
+          />
+
+          <Select value={workout.id.toString()} onValueChange={handleChangeWorkout}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {allWorkouts.map((w) => (
+                <SelectItem key={w.id} value={w.id.toString()}>
+                  {w.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Progress */}
@@ -246,6 +427,17 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
           isLoading={isLoading}
           suggestion={currentSet === 1 ? suggestion : undefined}
         />
+      )}
+
+      {/* Review mode indicator */}
+      {completedTargetSets && extraSetUsed && (
+        <Card className="border-green-500 bg-green-500/10">
+          <CardContent className="pt-6">
+            <p className="text-center text-sm">
+              ✓ All sets completed for this exercise (review mode)
+            </p>
+          </CardContent>
+        </Card>
       )}
 
       {/* Action buttons after target sets */}
