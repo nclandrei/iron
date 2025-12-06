@@ -43,3 +43,22 @@ export interface ExerciseWithLastLog extends Exercise {
   lastReps?: number;
   lastWeight?: number;
 }
+
+export interface ExerciseProgress {
+  exerciseId: number;
+  completedSets: number;
+  targetSetsCompleted: boolean;
+  lastSetNumber: number;
+}
+
+export interface WorkoutSession {
+  workoutId: number;
+  exerciseIndex: number;
+  currentSet: number;
+  extraSetUsed: boolean;
+  totalSetsLogged: number;
+  firstSetTime: string | null;
+  lastSetTime: string | null;
+  sessionDate: string;
+  exerciseProgress: [number, ExerciseProgress][];
+}

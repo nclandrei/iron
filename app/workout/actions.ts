@@ -109,3 +109,27 @@ export async function getExerciseSuggestionAction(exerciseId: number) {
     return { success: false, error: 'Failed to fetch exercise suggestion' };
   }
 }
+
+export async function getTodayLogsAction(workoutId: number) {
+  try {
+    const { rows } = await sql`
+      SELECT
+        id,
+        workout_id as "workoutId",
+        exercise_id as "exerciseId",
+        logged_at as "loggedAt",
+        set_number as "setNumber",
+        reps,
+        weight
+      FROM workout_logs
+      WHERE workout_id = ${workoutId}
+        AND DATE(logged_at) = CURRENT_DATE
+      ORDER BY logged_at ASC;
+    `;
+
+    return { success: true, logs: rows as any[] };
+  } catch (error) {
+    console.error('Error fetching today logs:', error);
+    return { success: false, error: 'Failed to fetch today logs' };
+  }
+}
