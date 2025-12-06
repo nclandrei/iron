@@ -70,7 +70,7 @@ export async function getExerciseSuggestionAction(exerciseId: number) {
     const shouldIncreaseWeight = averageReps > midpoint;
 
     const lastLog = await getLastLogForExercise(exerciseId);
-    const currentWeight = lastLog?.weight ?? exercise.defaultWeight;
+    const currentWeight = Number(lastLog?.weight ?? exercise.defaultWeight ?? 0);
 
     if (shouldIncreaseWeight) {
       const weightIncrement = currentWeight < 20 ? 1.25 : 2.5;
@@ -87,11 +87,8 @@ export async function getExerciseSuggestionAction(exerciseId: number) {
         midpoint,
       };
     } else {
-      const lastReps = lastLog?.reps ?? exercise.targetRepsMin;
-      const suggestedReps = Math.min(
-        Math.max(lastReps + 1, exercise.targetRepsMin),
-        exercise.targetRepsMax
-      );
+      // Focus on reps - aim for the high end of the range
+      const suggestedReps = exercise.targetRepsMax;
 
       return {
         success: true,
