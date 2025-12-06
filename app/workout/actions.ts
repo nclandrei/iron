@@ -1,8 +1,9 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { logSet as dbLogSet, getLastLogForExercise, getWorkoutWithExercises } from '@/lib/db/queries';
-import type { SetLogInput } from '@/lib/types';
+import { logSet as dbLogSet, getLastLogForExercise, getWorkoutWithExercises, getExerciseAverageRepsPastWeek } from '@/lib/db/queries';
+import { sql } from '@/lib/db/client';
+import type { SetLogInput, Exercise } from '@/lib/types';
 
 export async function logSetAction(input: SetLogInput) {
   try {
@@ -34,5 +35,77 @@ export async function getWorkoutAction(workoutId: number) {
   } catch (error) {
     console.error('Error fetching workout:', error);
     return { success: false, error: 'Failed to fetch workout' };
+  }
+}
+
+export async function getExerciseSuggestionAction(exerciseId: number) {
+  try {
+    const averageReps = await getExerciseAverageRepsPastWeek(exerciseId);
+
+    if (averageReps === null) {
+      return {
+        success: true,
+        suggestion: null,
+        averageReps: null,
+        midpoint: null,
+      };
+    }
+
+    const { rows } = await sql`
+      SELECT
+        id,
+        target_reps_min as "targetRepsMin",
+        target_reps_max as "targetRepsMax",
+        default_weight as "defaultWeight"
+      FROM exercises
+      WHERE id = ${exerciseId};
+    `;
+
+    if (rows.length === 0) {
+      return { success: false, error: 'Exercise not found' };
+    }
+
+    const exercise = rows[0] as Pick<Exercise, 'targetRepsMin' | 'targetRepsMax' | 'defaultWeight'>;
+    const midpoint = (exercise.targetRepsMin + exercise.targetRepsMax) / 2;
+    const shouldIncreaseWeight = averageReps > midpoint;
+
+    const lastLog = await getLastLogForExercise(exerciseId);
+    const currentWeight = lastLog?.weight ?? exercise.defaultWeight;
+
+    if (shouldIncreaseWeight) {
+      const weightIncrement = currentWeight < 20 ? 1.25 : 2.5;
+      const suggestedWeight = currentWeight + weightIncrement;
+
+      return {
+        success: true,
+        suggestion: {
+          shouldIncreaseWeight: true,
+          suggestedWeight,
+          suggestedReps: exercise.targetRepsMin,
+        },
+        averageReps,
+        midpoint,
+      };
+    } else {
+      const lastReps = lastLog?.reps ?? exercise.targetRepsMin;
+      const suggestedReps = Math.min(
+        Math.max(lastReps + 1, exercise.targetRepsMin),
+        exercise.targetRepsMax
+      );
+
+      return {
+        success: true,
+        suggestion: {
+          shouldIncreaseWeight: false,
+          suggestedWeight: currentWeight,
+          suggestedReps,
+        },
+        averageReps,
+        midpoint,
+      };
+    }
+  } catch (error) {
+    console.error('Error fetching exercise suggestion:', error);
+    return { success: false, error: 'Failed to fetch exercise suggestion' };
   }
 }
