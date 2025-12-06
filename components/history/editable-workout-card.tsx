@@ -203,7 +203,8 @@ export function EditableWorkoutCard({
                           onChange={(e) =>
                             handleSetChange(exercise.exerciseId, set.id, 'reps', e.target.value)
                           }
-                          className="w-20 h-8 text-center"
+                          className="w-20 h-8 text-center [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                          style={{ textAlign: 'center' }}
                           min="1"
                         />
                         <span className="text-muted-foreground">reps @</span>
@@ -219,7 +220,8 @@ export function EditableWorkoutCard({
                               e.target.value
                             )
                           }
-                          className="w-20 h-8 text-center"
+                          className="w-20 h-8 text-center [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                          style={{ textAlign: 'center' }}
                           min="0"
                         />
                         <span className="text-muted-foreground">kg</span>
