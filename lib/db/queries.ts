@@ -237,7 +237,10 @@ export async function getWorkoutHistory(
       return {
         date,
         durationMinutes,
-        exercises: Array.from(dateData.exerciseMap.values()),
+        exercises: Array.from(dateData.exerciseMap.values()).map((exercise) => ({
+          ...exercise,
+          sets: exercise.sets.sort((a, b) => a.setNumber - b.setNumber),
+        })),
       };
     });
 
