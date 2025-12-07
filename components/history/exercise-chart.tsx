@@ -16,32 +16,40 @@ export function ExerciseChart({ exercise, data }: ExerciseChartProps) {
 
   // Group by date and calculate average weight and reps
   const chartData = data.reduce((acc, curr) => {
+    const weight = Number(curr.weight) || 0;
+    const reps = Number(curr.reps) || 0;
+
     const existingDate = acc.find((d) => d.date === curr.date);
     if (existingDate) {
-      existingDate.totalWeight += curr.weight;
-      existingDate.totalReps += curr.reps;
+      existingDate.totalWeight += weight;
+      existingDate.totalReps += reps;
       existingDate.count += 1;
       existingDate.avgWeight = existingDate.totalWeight / existingDate.count;
       existingDate.avgReps = existingDate.totalReps / existingDate.count;
     } else {
       acc.push({
         date: curr.date,
-        totalWeight: curr.weight,
-        totalReps: curr.reps,
+        totalWeight: weight,
+        totalReps: reps,
         count: 1,
-        avgWeight: curr.weight,
-        avgReps: curr.reps,
+        avgWeight: weight,
+        avgReps: reps,
       });
     }
     return acc;
   }, [] as Array<{ date: string; totalWeight: number; totalReps: number; count: number; avgWeight: number; avgReps: number }>);
 
   // Format dates for display
-  const formattedData = chartData.map((d) => ({
-    date: new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-    weight: parseFloat(d.avgWeight.toFixed(1)),
-    reps: parseFloat(d.avgReps.toFixed(1)),
-  }));
+  const formattedData = chartData.map((d) => {
+    const avgWeight = Number.isFinite(d.avgWeight) ? d.avgWeight : 0;
+    const avgReps = Number.isFinite(d.avgReps) ? d.avgReps : 0;
+
+    return {
+      date: new Date(d.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      weight: parseFloat(avgWeight.toFixed(1)),
+      reps: parseFloat(avgReps.toFixed(1)),
+    };
+  });
 
   return (
     <Card>
@@ -64,7 +72,8 @@ export function ExerciseChart({ exercise, data }: ExerciseChartProps) {
               dataKey="weight"
               stroke="hsl(var(--primary))"
               strokeWidth={2}
-              dot={{ r: 4 }}
+              dot={{ r: 4, fill: "hsl(var(--primary))", strokeWidth: 2, stroke: "#fff" }}
+              activeDot={{ r: 6 }}
               name="Weight (kg)"
             />
             <Line
@@ -73,7 +82,8 @@ export function ExerciseChart({ exercise, data }: ExerciseChartProps) {
               dataKey="reps"
               stroke="hsl(var(--secondary))"
               strokeWidth={2}
-              dot={{ r: 4 }}
+              dot={{ r: 4, fill: "hsl(var(--secondary))", strokeWidth: 2, stroke: "#fff" }}
+              activeDot={{ r: 6 }}
               name="Reps"
             />
           </LineChart>
