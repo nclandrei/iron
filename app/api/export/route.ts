@@ -31,18 +31,17 @@ export async function GET() {
     const dateRange = `${formatDate(firstDate)} to ${formatDate(lastDate)}`;
 
     const totalSets = logs.length;
-    const uniqueWorkouts = new Set(logs.map((log) => log.workoutName)).size;
+    const totalReps = logs.reduce((acc, log) => acc + log.reps, 0);
 
     await resend.emails.send({
-      from: 'Workout Tracker <onboarding@resend.dev>',
+      from: 'IRON <onboarding@resend.dev>',
       to: process.env.EXPORT_EMAIL,
-      subject: `Weekly Workout Export - ${dateStr}`,
+      subject: `Weekly IRON Workout Export - ${dateStr}`,
       html: `
-        <h2>Weekly Workout Export</h2>
         <p>Your weekly workout data export is attached.</p>
         <ul>
           <li><strong>Total Sets:</strong> ${totalSets}</li>
-          <li><strong>Unique Workouts:</strong> ${uniqueWorkouts}</li>
+          <li><strong>Total Reps:</strong> ${totalReps}</li>
           <li><strong>Date Range:</strong> ${dateRange}</li>
         </ul>
       `,
