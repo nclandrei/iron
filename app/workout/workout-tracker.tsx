@@ -409,7 +409,7 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
   return (
     <div className="container mx-auto p-4 max-w-2xl space-y-6">
       {/* Workout selector */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
         <h1 className="text-2xl font-bold">{workout.name}</h1>
 
         <div className="flex items-center gap-2">
