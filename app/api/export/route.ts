@@ -57,7 +57,7 @@ export async function GET() {
       message: 'Export sent successfully',
       stats: {
         totalSets,
-        uniqueWorkouts,
+        totalReps,
         dateRange,
       },
     });
