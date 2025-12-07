@@ -323,7 +323,12 @@ export async function getExerciseHistory(
     ORDER BY logged_at ASC;
   `;
 
-  return rows as Array<{ date: string; setNumber: number; reps: number; weight: number }>;
+  return rows.map((row) => ({
+    date: String(row.date),
+    setNumber: Number(row.setNumber),
+    reps: Number(row.reps),
+    weight: parseFloat(String(row.weight)),
+  }));
 }
 
 // Update exercise
@@ -455,4 +460,38 @@ export async function addExercise(
   }
 
   return rows[0] as Exercise;
+}
+
+export interface WorkoutLogExport {
+  workoutName: string;
+  exerciseName: string;
+  loggedAt: Date;
+  setNumber: number;
+  reps: number;
+  weight: number;
+}
+
+export async function getAllWorkoutLogsForExport(): Promise<WorkoutLogExport[]> {
+  const { rows } = await sql`
+    SELECT
+      w.name as "workoutName",
+      e.name as "exerciseName",
+      wl.logged_at as "loggedAt",
+      wl.set_number as "setNumber",
+      wl.reps,
+      wl.weight
+    FROM workout_logs wl
+    JOIN exercises e ON e.id = wl.exercise_id
+    JOIN workouts w ON w.id = wl.workout_id
+    ORDER BY wl.logged_at ASC;
+  `;
+
+  return rows.map((row) => ({
+    workoutName: row.workoutName as string,
+    exerciseName: row.exerciseName as string,
+    loggedAt: new Date(row.loggedAt as string),
+    setNumber: row.setNumber as number,
+    reps: row.reps as number,
+    weight: parseFloat(row.weight as string),
+  }));
 }
