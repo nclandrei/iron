@@ -28,7 +28,8 @@ export function SetLogger({ onLogSet, defaultReps, defaultWeight, isLoading, sug
     e.preventDefault();
 
     const repsNum = parseInt(reps, 10);
-    const weightNum = parseFloat(weight);
+    // Normalize comma to period for parsing
+    const weightNum = parseFloat(weight.replace(',', '.'));
 
     if (isNaN(repsNum) || isNaN(weightNum) || repsNum <= 0 || weightNum <= 0) {
       return;
@@ -36,12 +37,12 @@ export function SetLogger({ onLogSet, defaultReps, defaultWeight, isLoading, sug
 
     await onLogSet(repsNum, weightNum);
 
-    // Keep the values for next set
+    // Keep the values for next set, normalized to period
     setReps(repsNum.toString());
-    setWeight(weightNum.toString());
+    setWeight(weightNum.toString().replace(',', '.'));
   }
 
-  const isValid = reps && weight && parseInt(reps) > 0 && parseFloat(weight) > 0;
+  const isValid = reps && weight && parseInt(reps) > 0 && parseFloat(weight.replace(',', '.')) > 0;
 
   return (
     <Card>
@@ -71,14 +72,12 @@ export function SetLogger({ onLogSet, defaultReps, defaultWeight, isLoading, sug
               <Label htmlFor="weight" className="text-lg">Weight (kg)</Label>
               <Input
                 id="weight"
-                type="number"
+                type="text"
                 inputMode="decimal"
-                step="0.25"
                 value={weight}
                 onChange={(e) => setWeight(e.target.value)}
                 className="text-2xl h-16 text-center"
-                min="0.1"
-                max="999.99"
+                placeholder="0.0"
                 required
               />
             </div>
