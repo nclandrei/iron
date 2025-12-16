@@ -396,7 +396,9 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
               size="lg"
               variant="outline"
               className="w-full"
-              onClick={() => router.push('/workout')}
+              onClick={() => {
+                window.location.href = '/workout';
+              }}
             >
               Done
             </Button>
@@ -461,7 +463,7 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
       {/* Review mode indicator */}
       {completedTargetSets && extraSetUsed && (
         <Card className="border-green-500 bg-green-500/10">
-          <CardContent className="pt-6">
+          <CardContent>
             <p className="text-center text-sm">
               ✓ All sets completed for this exercise (review mode)
             </p>

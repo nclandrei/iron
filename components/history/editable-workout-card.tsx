@@ -245,7 +245,7 @@ export function EditableWorkoutCard({
               .join(', ');
 
             return (
-              <div key={exercise.exerciseId} className="flex justify-between items-start">
+              <div key={exercise.exerciseId} className="flex justify-between items-center">
                 <span className="font-medium">{exercise.exerciseName}</span>
                 <span className="text-sm text-muted-foreground text-right">
                   {exercise.sets.length}× [{setsDisplay}]
