@@ -396,7 +396,7 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
               size="lg"
               variant="outline"
               className="w-full"
-              onClick={() => router.refresh()}
+              onClick={() => router.push('/workout')}
             >
               Done
             </Button>
