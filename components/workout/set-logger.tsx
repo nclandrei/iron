@@ -12,10 +12,11 @@ interface SetLoggerProps {
   defaultWeight?: number;
   isLoading?: boolean;
   suggestion?: { type: 'weight' | 'reps'; message: string };
-  lastWeight?: number;
+  currentSetNumber?: number;
+  lastSessionSets?: Array<{ setNumber: number; reps: number; weight: number }>;
 }
 
-export function SetLogger({ onLogSet, defaultReps, defaultWeight, isLoading, suggestion, lastWeight }: SetLoggerProps) {
+export function SetLogger({ onLogSet, defaultReps, defaultWeight, isLoading, suggestion, currentSetNumber, lastSessionSets }: SetLoggerProps) {
   const [reps, setReps] = useState(defaultReps?.toString() || '');
   const [weight, setWeight] = useState(defaultWeight?.toString() || '');
 
@@ -45,6 +46,11 @@ export function SetLogger({ onLogSet, defaultReps, defaultWeight, isLoading, sug
 
   const isValid = reps && weight && parseInt(reps) > 0 && parseFloat(weight.replace(',', '.')) > 0;
 
+  // Find matching set from last session by set number
+  const lastSetData = currentSetNumber && lastSessionSets
+    ? lastSessionSets.find(set => set.setNumber === currentSetNumber)
+    : undefined;
+
   return (
     <Card>
       <CardContent className="pt-6">
@@ -54,9 +60,9 @@ export function SetLogger({ onLogSet, defaultReps, defaultWeight, isLoading, sug
               {suggestion.message}
             </p>
           )}
-          {lastWeight !== undefined && (
+          {lastSetData && (
             <p className="text-xs text-muted-foreground text-center">
-              Last workout: {lastWeight}kg
+              Last workout: {lastSetData.weight}kg × {lastSetData.reps} reps
             </p>
           )}
           <div className="grid grid-cols-2 gap-4">

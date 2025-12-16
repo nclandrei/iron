@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import type { WorkoutWithExercises, Workout, ExerciseProgress, Exercise, WorkoutLog } from '@/lib/types';
-import { logSetAction, getLastLogAction, getWorkoutAction, getExerciseSuggestionAction, getTodayLogsAction } from './actions';
+import { logSetAction, getLastLogAction, getWorkoutAction, getExerciseSuggestionAction, getTodayLogsAction, getLastSessionSetsAction } from './actions';
 import { ExerciseDisplay } from '@/components/workout/exercise-display';
 import { SetLogger } from '@/components/workout/set-logger';
 import { ExerciseList } from '@/components/workout/exercise-list';
@@ -169,12 +169,13 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
     async function loadLastLog() {
       const result = await getLastLogAction(currentExercise.id);
       const suggestionResult = await getExerciseSuggestionAction(currentExercise.id);
+      const lastSessionResult = await getLastSessionSetsAction(currentExercise.id);
 
-      // Set last weight for reference
-      if (result.success && result.lastLog) {
-        setLastWeight(result.lastLog.weight);
+      // Store last session sets for reference
+      if (lastSessionResult.success && lastSessionResult.sets) {
+        setLastSessionSets(lastSessionResult.sets);
       } else {
-        setLastWeight(undefined);
+        setLastSessionSets([]);
       }
 
       if (suggestionResult.success && suggestionResult.suggestion) {
@@ -465,7 +466,8 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
           defaultWeight={defaultValues.weight}
           isLoading={isLoading}
           suggestion={suggestion}
-          lastWeight={lastWeight}
+          currentSetNumber={currentSet}
+          lastSessionSets={lastSessionSets}
         />
       )}
 
@@ -494,7 +496,8 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
                 defaultWeight={defaultValues.weight}
                 isLoading={isLoading}
                 suggestion={undefined}
-                lastWeight={lastWeight}
+                currentSetNumber={currentSet}
+                lastSessionSets={lastSessionSets}
               />
               <p className="text-center text-sm text-muted-foreground">
                 Feeling strong? Add one more set above, or move to next exercise below.
