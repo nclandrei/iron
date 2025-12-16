@@ -49,13 +49,14 @@ export function ExerciseList({
         </Button>
       </SheetTrigger>
 
-      <SheetContent>
-        <SheetHeader>
+      <SheetContent className="flex flex-col">
+        <SheetHeader className="flex-shrink-0">
           <SheetTitle>Exercises</SheetTitle>
         </SheetHeader>
 
-        <div className="mt-6 space-y-2 px-1">
-          {exercises.map((exercise, index) => {
+        <div className="flex-1 overflow-y-auto px-4 pb-4">
+          <div className="space-y-2 pb-20 md:pb-0">
+            {exercises.map((exercise, index) => {
             const status = getExerciseStatus(exercise, index);
             const progress = exerciseProgress.get(exercise.id);
 
@@ -103,6 +104,7 @@ export function ExerciseList({
               </button>
             );
           })}
+          </div>
         </div>
       </SheetContent>
     </Sheet>
