@@ -40,17 +40,7 @@ export async function getWorkoutAction(workoutId: number) {
 
 export async function getExerciseSuggestionAction(exerciseId: number) {
   try {
-    const averageReps = await getExerciseAverageRepsPastWeek(exerciseId);
-
-    if (averageReps === null) {
-      return {
-        success: true,
-        suggestion: null,
-        averageReps: null,
-        midpoint: null,
-      };
-    }
-
+    // Fetch exercise config
     const { rows } = await sql`
       SELECT
         id,
@@ -66,15 +56,42 @@ export async function getExerciseSuggestionAction(exerciseId: number) {
     }
 
     const exercise = rows[0] as Pick<Exercise, 'targetRepsMin' | 'targetRepsMax' | 'defaultWeight'>;
-    const midpoint = (exercise.targetRepsMin + exercise.targetRepsMax) / 2;
-    const shouldIncreaseWeight = averageReps > midpoint;
 
-    const lastLog = await getLastLogForExercise(exerciseId);
-    const currentWeight = Number(lastLog?.weight ?? exercise.defaultWeight ?? 0);
+    // Get all sets from the last session for this exercise
+    const { rows: lastSessionRows } = await sql`
+      SELECT reps, weight, DATE(logged_at) as session_date
+      FROM workout_logs
+      WHERE exercise_id = ${exerciseId}
+      ORDER BY logged_at DESC
+      LIMIT 10;
+    `;
 
-    if (shouldIncreaseWeight) {
-      const weightIncrement = currentWeight < 20 ? 1.25 : 2.5;
-      const suggestedWeight = currentWeight + weightIncrement;
+    // No history - return no suggestion
+    if (lastSessionRows.length === 0) {
+      return {
+        success: true,
+        suggestion: null,
+        averageReps: null,
+        midpoint: null,
+      };
+    }
+
+    // Get the most recent session date and filter sets from that date only
+    const mostRecentDate = lastSessionRows[0].session_date;
+    const lastSessionSets = lastSessionRows.filter(
+      (row: any) => row.session_date === mostRecentDate
+    );
+
+    // Check if ALL sets from last session hit max target reps
+    const allSetsMaxedOut = lastSessionSets.every(
+      (set: any) => set.reps >= exercise.targetRepsMax
+    );
+
+    const lastWeight = Number(lastSessionSets[0].weight);
+
+    if (allSetsMaxedOut) {
+      // All sets hit max reps - suggest weight increase
+      const suggestedWeight = lastWeight + 1.25;
 
       return {
         success: true,
@@ -83,22 +100,20 @@ export async function getExerciseSuggestionAction(exerciseId: number) {
           suggestedWeight,
           suggestedReps: exercise.targetRepsMin,
         },
-        averageReps,
-        midpoint,
+        averageReps: null,
+        midpoint: exercise.targetRepsMax,
       };
     } else {
-      // Focus on reps - aim for the high end of the range
-      const suggestedReps = exercise.targetRepsMax;
-
+      // At least one set didn't hit max - focus on reps
       return {
         success: true,
         suggestion: {
           shouldIncreaseWeight: false,
-          suggestedWeight: currentWeight,
-          suggestedReps,
+          suggestedWeight: lastWeight,
+          suggestedReps: exercise.targetRepsMax,
         },
-        averageReps,
-        midpoint,
+        averageReps: null,
+        midpoint: exercise.targetRepsMax,
       };
     }
   } catch (error) {
