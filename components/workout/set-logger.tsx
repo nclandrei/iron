@@ -12,9 +12,10 @@ interface SetLoggerProps {
   defaultWeight?: number;
   isLoading?: boolean;
   suggestion?: { type: 'weight' | 'reps'; message: string };
+  lastWeight?: number;
 }
 
-export function SetLogger({ onLogSet, defaultReps, defaultWeight, isLoading, suggestion }: SetLoggerProps) {
+export function SetLogger({ onLogSet, defaultReps, defaultWeight, isLoading, suggestion, lastWeight }: SetLoggerProps) {
   const [reps, setReps] = useState(defaultReps?.toString() || '');
   const [weight, setWeight] = useState(defaultWeight?.toString() || '');
 
@@ -51,6 +52,11 @@ export function SetLogger({ onLogSet, defaultReps, defaultWeight, isLoading, sug
           {suggestion && (
             <p className="text-sm text-muted-foreground text-center">
               {suggestion.message}
+            </p>
+          )}
+          {lastWeight !== undefined && (
+            <p className="text-xs text-muted-foreground text-center">
+              Last workout: {lastWeight}kg
             </p>
           )}
           <div className="grid grid-cols-2 gap-4">

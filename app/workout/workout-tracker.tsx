@@ -38,6 +38,7 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
   const [firstSetTime, setFirstSetTime] = useState<Date | null>(null);
   const [lastSetTime, setLastSetTime] = useState<Date | null>(null);
   const [suggestion, setSuggestion] = useState<{ type: 'weight' | 'reps'; message: string } | undefined>();
+  const [lastSessionSets, setLastSessionSets] = useState<Array<{ setNumber: number; reps: number; weight: number }>>([]);
   const [exerciseProgress, setExerciseProgress] = useState<Map<number, ExerciseProgress>>(new Map());
   const [isRestoringSession, setIsRestoringSession] = useState(true);
 
@@ -169,7 +170,14 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
       const result = await getLastLogAction(currentExercise.id);
       const suggestionResult = await getExerciseSuggestionAction(currentExercise.id);
 
-      if (currentSet === 1 && suggestionResult.success && suggestionResult.suggestion) {
+      // Set last weight for reference
+      if (result.success && result.lastLog) {
+        setLastWeight(result.lastLog.weight);
+      } else {
+        setLastWeight(undefined);
+      }
+
+      if (suggestionResult.success && suggestionResult.suggestion) {
         const suggestion = suggestionResult.suggestion;
         setDefaultValues({
           reps: suggestion.suggestedReps,
@@ -178,12 +186,12 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
         if (suggestion.shouldIncreaseWeight) {
           setSuggestion({
             type: 'weight',
-            message: `Average reps above target - try ${suggestion.suggestedWeight}kg`,
+            message: `Increase to ${suggestion.suggestedWeight}kg`,
           });
         } else {
           setSuggestion({
             type: 'reps',
-            message: `Focus on reps - aim for ${suggestion.suggestedReps} reps`,
+            message: `Aim for ${suggestion.suggestedReps} reps`,
           });
         }
       } else {
@@ -456,7 +464,8 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
           defaultReps={defaultValues.reps}
           defaultWeight={defaultValues.weight}
           isLoading={isLoading}
-          suggestion={currentSet === 1 ? suggestion : undefined}
+          suggestion={suggestion}
+          lastWeight={lastWeight}
         />
       )}
 
@@ -485,6 +494,7 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
                 defaultWeight={defaultValues.weight}
                 isLoading={isLoading}
                 suggestion={undefined}
+                lastWeight={lastWeight}
               />
               <p className="text-center text-sm text-muted-foreground">
                 Feeling strong? Add one more set above, or move to next exercise below.

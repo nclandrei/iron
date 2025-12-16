@@ -25,6 +25,41 @@ export async function getLastLogAction(exerciseId: number) {
   }
 }
 
+export async function getLastSessionSetsAction(exerciseId: number) {
+  try {
+    // Get all sets from the last session for this exercise
+    const { rows } = await sql`
+      SELECT reps, weight, set_number as "setNumber", DATE(logged_at) as session_date
+      FROM workout_logs
+      WHERE exercise_id = ${exerciseId}
+      ORDER BY logged_at DESC
+      LIMIT 10;
+    `;
+
+    if (rows.length === 0) {
+      return { success: true, sets: [] };
+    }
+
+    // Filter to only include sets from the most recent session date
+    const mostRecentDate = rows[0].session_date;
+    const lastSessionSets = rows.filter(
+      (row: any) => row.session_date === mostRecentDate
+    );
+
+    return {
+      success: true,
+      sets: lastSessionSets.map((row: any) => ({
+        setNumber: row.setNumber,
+        reps: row.reps,
+        weight: Number(row.weight),
+      }))
+    };
+  } catch (error) {
+    console.error('Error fetching last session sets:', error);
+    return { success: false, error: 'Failed to fetch last session sets', sets: [] };
+  }
+}
+
 export async function getWorkoutAction(workoutId: number) {
   try {
     const workout = await getWorkoutWithExercises(workoutId);
