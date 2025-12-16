@@ -143,6 +143,7 @@ export async function getWorkoutHistory(
   Array<{
     date: string;
     durationMinutes: number | null;
+    firstLoggedAt: string | null;
     exercises: Array<{
       exerciseId: number;
       exerciseName: string;
@@ -240,6 +241,9 @@ export async function getWorkoutHistory(
       return {
         date,
         durationMinutes,
+        firstLoggedAt: timestamps.length > 0
+          ? new Date(Math.min(...timestamps.map((t) => t.getTime()))).toISOString()
+          : null,
         exercises: Array.from(dateData.exerciseMap.values())
           .sort((a, b) => a.orderIndex - b.orderIndex)
           .map((exercise) => ({

@@ -1,9 +1,21 @@
 import { getWorkoutHistory, getWorkoutWithExercises, getExerciseHistory } from '@/lib/db/queries';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { formatDistance } from 'date-fns';
 import { ExerciseChart } from './exercise-chart';
 import { EditableWorkoutCard } from './editable-workout-card';
+
+function formatTimeAgo(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffDays > 0) return `${diffDays}d ago`;
+  if (diffHours > 0) return `${diffHours}h ago`;
+  if (diffMins > 0) return `${diffMins}m ago`;
+  return 'just now';
+}
 
 interface WorkoutHistoryTableProps {
   workoutId: number;
@@ -46,13 +58,19 @@ export async function WorkoutHistoryTable({ workoutId }: WorkoutHistoryTableProp
 
       <TabsContent value="table" className="space-y-4">
         {history.map((session) => {
-          const date = new Date(session.date);
+          // Parse date string as local time (YYYY-MM-DD)
+          const [year, month, day] = session.date.split('-').map(Number);
+          const date = new Date(year, month - 1, day);
           const dateStr = date.toLocaleDateString('en-US', {
             month: 'short',
             day: 'numeric',
             year: 'numeric',
           });
-          const relativeTime = formatDistance(date, new Date(), { addSuffix: true });
+          // Use actual timestamp for relative time if available, otherwise fall back to date
+          const timeForRelative = session.firstLoggedAt
+            ? new Date(session.firstLoggedAt)
+            : date;
+          const relativeTime = formatTimeAgo(timeForRelative);
 
           const formatDuration = (minutes: number | null) => {
             if (minutes === null) return null;
