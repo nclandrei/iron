@@ -166,6 +166,7 @@ export async function getWorkoutHistory(
       wl.id,
       wl.exercise_id as "exerciseId",
       e.name as "exerciseName",
+      e.order_index as "orderIndex",
       wl.set_number as "setNumber",
       wl.reps,
       wl.weight,
@@ -185,6 +186,7 @@ export async function getWorkoutHistory(
         {
           exerciseId: number;
           exerciseName: string;
+          orderIndex: number;
           sets: Array<{ id: number; setNumber: number; reps: number; weight: number }>;
         }
       >;
@@ -209,6 +211,7 @@ export async function getWorkoutHistory(
       dateData.exerciseMap.set(row.exerciseId, {
         exerciseId: row.exerciseId,
         exerciseName: row.exerciseName,
+        orderIndex: row.orderIndex,
         sets: [],
       });
     }
@@ -237,10 +240,13 @@ export async function getWorkoutHistory(
       return {
         date,
         durationMinutes,
-        exercises: Array.from(dateData.exerciseMap.values()).map((exercise) => ({
-          ...exercise,
-          sets: exercise.sets.sort((a, b) => a.setNumber - b.setNumber),
-        })),
+        exercises: Array.from(dateData.exerciseMap.values())
+          .sort((a, b) => a.orderIndex - b.orderIndex)
+          .map((exercise) => ({
+            exerciseId: exercise.exerciseId,
+            exerciseName: exercise.exerciseName,
+            sets: exercise.sets.sort((a, b) => a.setNumber - b.setNumber),
+          })),
       };
     });
 
