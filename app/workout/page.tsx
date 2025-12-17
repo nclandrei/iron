@@ -3,17 +3,18 @@ import { getWorkoutDayFromCurrent } from '@/lib/utils/workout';
 import { WorkoutTracker } from './workout-tracker';
 
 interface WorkoutPageProps {
-  searchParams: { id?: string };
+  searchParams: Promise<{ id?: string }>;
 }
 
 export default async function WorkoutPage({ searchParams }: WorkoutPageProps) {
   const allWorkouts = await getWorkouts();
+  const params = await searchParams;
 
   let workout;
 
-  if (searchParams.id) {
+  if (params.id) {
     // Manual selection via dropdown
-    workout = await getWorkoutWithExercises(parseInt(searchParams.id));
+    workout = await getWorkoutWithExercises(parseInt(params.id));
   } else {
     // Auto-detect by day
     const currentDay = getWorkoutDayFromCurrent();

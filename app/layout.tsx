@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Nav } from "@/components/layout/nav";
@@ -19,6 +19,12 @@ export const metadata: Metadata = {
     title: "Iron",
 };
 
+export const viewport: Viewport = {
+    width: "device-width",
+    initialScale: 1,
+    viewportFit: "cover",
+};
+
 export default async function RootLayout({
     children,
 }: Readonly<{
@@ -32,7 +38,7 @@ export default async function RootLayout({
                 className={`${geistSans.variable} ${geistMono.variable} antialiased`}
             >
                 {authenticated && <Nav />}
-                <main className={authenticated ? "pb-20 md:pb-0 md:pt-20" : ""}>
+                <main className={authenticated ? "pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0 md:pt-20" : ""}>
                     {children}
                 </main>
                 <Toaster />
