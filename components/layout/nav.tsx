@@ -27,7 +27,7 @@ export function Nav() {
   const pathname = usePathname();
 
   return (
-    <nav aria-label="Main navigation" className="fixed bottom-0 left-0 right-0 z-[60] border-t bg-background pb-[env(safe-area-inset-bottom)] md:top-0 md:bottom-auto md:border-b md:border-t-0 md:pb-0">
+    <nav aria-label="Main navigation" className="fixed bottom-4 left-4 right-4 z-[60] rounded-xl border bg-background shadow-lg md:bottom-auto md:left-0 md:right-0 md:top-0 md:rounded-none md:border-b md:border-l-0 md:border-r-0 md:border-t-0 md:shadow-none">
       <div className="container mx-auto">
         <div className="flex justify-around md:justify-center md:gap-8 md:py-4">
           {routes.map((route) => {

@@ -38,7 +38,7 @@ export default async function RootLayout({
                 className={`${geistSans.variable} ${geistMono.variable} antialiased`}
             >
                 {authenticated && <Nav />}
-                <main className={authenticated ? "pb-[calc(5rem+env(safe-area-inset-bottom))] md:pb-0 md:pt-20" : ""}>
+                <main className={authenticated ? "pb-28 md:pb-0 md:pt-20" : ""}>
                     {children}
                 </main>
                 <Toaster />
