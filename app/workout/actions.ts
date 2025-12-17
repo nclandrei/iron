@@ -42,8 +42,13 @@ export async function getLastSessionSetsAction(exerciseId: number) {
 
     // Filter to only include sets from the most recent session date
     const mostRecentDate = rows[0].session_date;
+    const mostRecentTime = new Date(mostRecentDate).getTime();
+
     const lastSessionSets = rows.filter(
-      (row: any) => row.session_date === mostRecentDate
+      (row: any) => {
+        const rowTime = new Date(row.session_date).getTime();
+        return rowTime === mostRecentTime;
+      }
     );
 
     return {
