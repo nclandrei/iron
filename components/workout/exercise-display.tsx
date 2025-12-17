@@ -13,7 +13,7 @@ export function ExerciseDisplay({ exercise, currentSet, totalSets }: ExerciseDis
       <CardHeader>
         <CardTitle className="text-2xl">{exercise.name}</CardTitle>
         <CardDescription className="text-lg">
-          Target: {exercise.targetSets} × {exercise.targetRepsMin}-{exercise.targetRepsMax} @ {exercise.defaultWeight}kg
+          Target: {exercise.targetSets} × {exercise.targetRepsMin}-{exercise.targetRepsMax}
         </CardDescription>
       </CardHeader>
       <CardContent>
