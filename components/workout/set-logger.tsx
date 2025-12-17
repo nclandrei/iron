@@ -53,8 +53,8 @@ export function SetLogger({ onLogSet, defaultReps, defaultWeight, isLoading, sug
 
   return (
     <Card>
-      <CardContent className="pt-6">
-        <form onSubmit={handleSubmit} className="space-y-6">
+      <CardContent className="pt-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           {suggestion && (
             <p className="text-sm text-muted-foreground text-center">
               {suggestion.message}
