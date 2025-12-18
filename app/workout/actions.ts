@@ -98,11 +98,12 @@ export async function getExerciseSuggestionAction(exerciseId: number) {
 
     const exercise = rows[0] as Pick<Exercise, 'targetRepsMin' | 'targetRepsMax' | 'defaultWeight'>;
 
-    // Get all sets from the last session for this exercise
+    // Get all sets from the last session for this exercise (excluding today)
     const { rows: lastSessionRows } = await sql`
       SELECT reps, weight, DATE(logged_at) as session_date
       FROM workout_logs
       WHERE exercise_id = ${exerciseId}
+        AND DATE(logged_at) < CURRENT_DATE
       ORDER BY logged_at DESC
       LIMIT 10;
     `;
