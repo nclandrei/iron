@@ -341,6 +341,80 @@ export async function getExerciseHistory(
   }));
 }
 
+// Get exercise history by name (consolidates across all workouts)
+export async function getExerciseHistoryByName(
+  exerciseName: string
+): Promise<
+  Array<{
+    date: string;
+    workoutName: string;
+    setNumber: number;
+    reps: number;
+    weight: number;
+    volume: number;
+    loggedAt: Date;
+  }>
+> {
+  if (typeof exerciseName !== 'string' || exerciseName.length === 0) {
+    throw new Error('exerciseName must be a non-empty string');
+  }
+
+  const { rows } = await sql`
+    SELECT
+      DATE(wl.logged_at)::text as date,
+      w.name as "workoutName",
+      wl.set_number as "setNumber",
+      wl.reps,
+      wl.weight,
+      (wl.reps * wl.weight) as volume,
+      wl.logged_at as "loggedAt"
+    FROM workout_logs wl
+    JOIN exercises e ON e.id = wl.exercise_id
+    JOIN workouts w ON w.id = wl.workout_id
+    WHERE e.name = ${exerciseName}
+    ORDER BY wl.logged_at ASC;
+  `;
+
+  return rows.map((row) => ({
+    date: String(row.date),
+    workoutName: String(row.workoutName),
+    setNumber: Number(row.setNumber),
+    reps: Number(row.reps),
+    weight: parseFloat(String(row.weight)),
+    volume: parseFloat(String(row.volume)),
+    loggedAt: new Date(row.loggedAt as string),
+  }));
+}
+
+// Get all unique exercise names with metadata
+export async function getAllUniqueExerciseNames(): Promise<
+  Array<{
+    name: string;
+    totalLogs: number;
+    firstLoggedAt: Date | null;
+    lastLoggedAt: Date | null;
+  }>
+> {
+  const { rows } = await sql`
+    SELECT
+      e.name,
+      COUNT(wl.id) as "totalLogs",
+      MIN(wl.logged_at) as "firstLoggedAt",
+      MAX(wl.logged_at) as "lastLoggedAt"
+    FROM exercises e
+    LEFT JOIN workout_logs wl ON wl.exercise_id = e.id
+    GROUP BY e.name
+    ORDER BY MAX(wl.logged_at) DESC NULLS LAST, e.name ASC;
+  `;
+
+  return rows.map((row) => ({
+    name: String(row.name),
+    totalLogs: Number(row.totalLogs),
+    firstLoggedAt: row.firstLoggedAt ? new Date(row.firstLoggedAt as string) : null,
+    lastLoggedAt: row.lastLoggedAt ? new Date(row.lastLoggedAt as string) : null,
+  }));
+}
+
 // Update exercise
 export async function updateExercise(
   exerciseId: number,
