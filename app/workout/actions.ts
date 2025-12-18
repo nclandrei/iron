@@ -27,11 +27,12 @@ export async function getLastLogAction(exerciseId: number) {
 
 export async function getLastSessionSetsAction(exerciseId: number) {
   try {
-    // Get all sets from the last session for this exercise
+    // Get all sets from the last session for this exercise (excluding today)
     const { rows } = await sql`
       SELECT reps, weight, set_number as "setNumber", DATE(logged_at) as session_date
       FROM workout_logs
       WHERE exercise_id = ${exerciseId}
+        AND DATE(logged_at) < CURRENT_DATE
       ORDER BY logged_at DESC
       LIMIT 10;
     `;
@@ -40,7 +41,7 @@ export async function getLastSessionSetsAction(exerciseId: number) {
       return { success: true, sets: [] };
     }
 
-    // Filter to only include sets from the most recent session date
+    // Filter to only include sets from the most recent session date (before today)
     const mostRecentDate = rows[0].session_date;
     const mostRecentTime = new Date(mostRecentDate).getTime();
 
