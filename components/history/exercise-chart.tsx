@@ -39,7 +39,18 @@ export function ExerciseChart({ exercise, data }: ExerciseChartProps) {
       });
     }
     return acc;
-  }, [] as Array<{ date: string; totalWeight: number; totalReps: number; count: number; avgWeight: number; avgReps: number; maxWeight: number }>);
+  }, [] as Array<{
+    date: string;
+    totalWeight: number;
+    totalReps: number;
+    count: number;
+    avgWeight: number;
+    avgReps: number;
+    maxWeight: number;
+    isPR?: boolean;
+    weightTrend?: number;
+    repsTrend?: number;
+  }>);
 
   // Detect PRs
   let runningMax = 0;
