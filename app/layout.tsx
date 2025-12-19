@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-    title: "Iron",
+    title: "IRON",
 };
 
 export const viewport: Viewport = {
