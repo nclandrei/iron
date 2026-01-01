@@ -117,11 +117,19 @@ export async function getExerciseAverageRepsPastWeek(
   return parseFloat(rows[0].averageReps);
 }
 
-// Log a set
+// Log a set (with exercise name snapshot)
 export async function logSet(input: SetLogInput): Promise<WorkoutLog> {
   const { rows } = await sql`
-    INSERT INTO workout_logs (workout_id, exercise_id, set_number, reps, weight)
-    VALUES (${input.workoutId}, ${input.exerciseId}, ${input.setNumber}, ${input.reps}, ${input.weight})
+    INSERT INTO workout_logs (workout_id, exercise_id, set_number, reps, weight, exercise_name)
+    SELECT
+      ${input.workoutId},
+      ${input.exerciseId},
+      ${input.setNumber},
+      ${input.reps},
+      ${input.weight},
+      e.name
+    FROM exercises e
+    WHERE e.id = ${input.exerciseId}
     RETURNING
       id,
       workout_id as "workoutId",
@@ -129,7 +137,8 @@ export async function logSet(input: SetLogInput): Promise<WorkoutLog> {
       logged_at as "loggedAt",
       set_number as "setNumber",
       reps,
-      weight;
+      weight,
+      exercise_name as "exerciseName";
   `;
 
   return rows[0] as WorkoutLog;
@@ -166,7 +175,7 @@ export async function getWorkoutHistory(
       DATE(wl.logged_at)::text as date,
       wl.id,
       wl.exercise_id as "exerciseId",
-      e.name as "exerciseName",
+      COALESCE(wl.exercise_name, e.name) as "exerciseName",
       e.order_index as "orderIndex",
       wl.set_number as "setNumber",
       wl.reps,
@@ -371,7 +380,7 @@ export async function getExerciseHistoryByName(
     FROM workout_logs wl
     JOIN exercises e ON e.id = wl.exercise_id
     JOIN workouts w ON w.id = wl.workout_id
-    WHERE e.name = ${exerciseName}
+    WHERE COALESCE(wl.exercise_name, e.name) = ${exerciseName}
     ORDER BY wl.logged_at ASC;
   `;
 
@@ -559,7 +568,7 @@ export async function getAllWorkoutLogsForExport(): Promise<WorkoutLogExport[]> 
   const { rows } = await sql`
     SELECT
       w.name as "workoutName",
-      e.name as "exerciseName",
+      COALESCE(wl.exercise_name, e.name) as "exerciseName",
       wl.logged_at as "loggedAt",
       wl.set_number as "setNumber",
       wl.reps,

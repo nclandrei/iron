@@ -25,6 +25,7 @@ export interface WorkoutLog {
   setNumber: number;
   reps: number;
   weight: number;
+  exerciseName?: string; // Snapshot of exercise name at log time
 }
 
 export interface WorkoutWithExercises extends Workout {

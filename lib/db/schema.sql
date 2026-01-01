@@ -29,7 +29,8 @@ CREATE TABLE IF NOT EXISTS workout_logs (
   logged_at TIMESTAMP DEFAULT NOW(),
   set_number INTEGER NOT NULL,
   reps INTEGER NOT NULL,
-  weight DECIMAL(5,2) NOT NULL
+  weight DECIMAL(5,2) NOT NULL,
+  exercise_name VARCHAR(100) -- Snapshot of exercise name at log time
 );
 
 -- Indexes for performance
