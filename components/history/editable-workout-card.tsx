@@ -165,7 +165,7 @@ export function EditableWorkoutCard({
                 variant="ghost"
                 size="icon-sm"
                 onClick={handleSave}
-                disabled={isSaving}
+                loading={isSaving}
               >
                 <Save className="size-4" />
               </Button>

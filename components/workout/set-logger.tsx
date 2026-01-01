@@ -99,9 +99,10 @@ export function SetLogger({ onLogSet, defaultReps, defaultWeight, isLoading, sug
             type="submit"
             size="lg"
             className="w-full h-16 text-xl"
-            disabled={!isValid || isLoading}
+            disabled={!isValid}
+            loading={isLoading}
           >
-            {isLoading ? 'Logging...' : 'Log Set'}
+            Log Set
           </Button>
         </form>
       </CardContent>

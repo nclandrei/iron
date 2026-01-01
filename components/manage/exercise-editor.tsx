@@ -17,6 +17,8 @@ interface ExerciseEditorProps {
 
 export function ExerciseEditor({ exercise, onDelete }: ExerciseEditorProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [name, setName] = useState(exercise.name);
   const [sets, setSets] = useState(exercise.targetSets.toString());
   const [repsMin, setRepsMin] = useState(exercise.targetRepsMin.toString());
@@ -24,6 +26,7 @@ export function ExerciseEditor({ exercise, onDelete }: ExerciseEditorProps) {
   const [weight, setWeight] = useState(exercise.defaultWeight.toString());
 
   async function handleSave() {
+    setIsSaving(true);
     const result = await updateExerciseAction(exercise.id, {
       name,
       targetSets: parseInt(sets),
@@ -42,6 +45,7 @@ export function ExerciseEditor({ exercise, onDelete }: ExerciseEditorProps) {
         description: result.error,
       });
     }
+    setIsSaving(false);
   }
 
   async function handleDelete() {
@@ -49,6 +53,7 @@ export function ExerciseEditor({ exercise, onDelete }: ExerciseEditorProps) {
       return;
     }
 
+    setIsDeleting(true);
     const result = await deleteExerciseAction(exercise.id);
 
     if (result.success) {
@@ -61,6 +66,7 @@ export function ExerciseEditor({ exercise, onDelete }: ExerciseEditorProps) {
         description: result.error,
       });
     }
+    setIsDeleting(false);
   }
 
   if (!isEditing) {
@@ -69,10 +75,10 @@ export function ExerciseEditor({ exercise, onDelete }: ExerciseEditorProps) {
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-lg font-medium">{exercise.name}</CardTitle>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+            <Button variant="outline" size="sm" onClick={() => setIsEditing(true)} disabled={isDeleting}>
               Edit
             </Button>
-            <Button variant="destructive" size="sm" onClick={handleDelete}>
+            <Button variant="destructive" size="sm" onClick={handleDelete} loading={isDeleting}>
               <Trash2 className="h-4 w-4" />
             </Button>
           </div>
@@ -149,10 +155,10 @@ export function ExerciseEditor({ exercise, onDelete }: ExerciseEditorProps) {
         </div>
 
         <div className="flex gap-2">
-          <Button onClick={handleSave} className="flex-1">
+          <Button onClick={handleSave} className="flex-1" loading={isSaving}>
             Save
           </Button>
-          <Button variant="outline" onClick={() => setIsEditing(false)} className="flex-1">
+          <Button variant="outline" onClick={() => setIsEditing(false)} className="flex-1" disabled={isSaving}>
             Cancel
           </Button>
         </div>

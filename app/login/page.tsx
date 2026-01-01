@@ -90,9 +90,9 @@ export default function LoginPage() {
                         <Button
                             type="submit"
                             className="w-full h-11 text-base font-semibold"
-                            disabled={isLoading}
+                            loading={isLoading}
                         >
-                            {isLoading ? 'Logging in...' : 'Login'}
+                            Login
                         </Button>
                     </form>
                 </CardContent>
