@@ -13,9 +13,10 @@ import { toast } from 'sonner';
 interface ExerciseEditorProps {
   exercise: Exercise;
   onDelete: () => void;
+  onUpdate: (updatedExercise: Exercise) => void;
 }
 
-export function ExerciseEditor({ exercise, onDelete }: ExerciseEditorProps) {
+export function ExerciseEditor({ exercise, onDelete, onUpdate }: ExerciseEditorProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -38,6 +39,14 @@ export function ExerciseEditor({ exercise, onDelete }: ExerciseEditorProps) {
     if (result.success) {
       toast.success('Exercise updated', {
         description: `${name} has been updated`,
+      });
+      onUpdate({
+        ...exercise,
+        name,
+        targetSets: parseInt(sets),
+        targetRepsMin: parseInt(repsMin),
+        targetRepsMax: parseInt(repsMax),
+        defaultWeight: parseFloat(weight),
       });
       setIsEditing(false);
     } else {

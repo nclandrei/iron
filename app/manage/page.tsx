@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import type { WorkoutWithExercises } from '@/lib/types';
+import type { WorkoutWithExercises, Exercise } from '@/lib/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -105,6 +105,20 @@ export default function ManagePage() {
     }));
   }
 
+  function handleUpdateExercise(workoutId: number, updatedExercise: Exercise) {
+    setWorkouts(prev => prev.map(w => {
+      if (w.id === workoutId) {
+        return {
+          ...w,
+          exercises: w.exercises.map(e => 
+            e.id === updatedExercise.id ? updatedExercise : e
+          ),
+        };
+      }
+      return w;
+    }));
+  }
+
   if (isLoading) {
     return (
       <div className="container mx-auto p-4 max-w-4xl">
@@ -135,6 +149,7 @@ export default function ManagePage() {
                 key={exercise.id}
                 exercise={exercise}
                 onDelete={() => handleDeleteExercise(workout.id, exercise.id)}
+                onUpdate={(updated) => handleUpdateExercise(workout.id, updated)}
               />
             ))}
 
