@@ -1,5 +1,5 @@
 import { Resend } from 'resend';
-import { getAllWorkoutLogsForExport } from '@/lib/db/queries';
+import { getWorkoutLogsForDateRange } from '@/lib/db/queries';
 import { generateWorkoutCsv } from '@/lib/utils/csv-export';
 
 export async function GET() {
@@ -14,21 +14,21 @@ export async function GET() {
 
     const resend = new Resend(process.env.RESEND_API_KEY);
 
-    const logs = await getAllWorkoutLogsForExport();
+    const today = new Date();
+    const weekAgo = new Date(today);
+    weekAgo.setDate(weekAgo.getDate() - 7);
+
+    const logs = await getWorkoutLogsForDateRange(weekAgo, today);
 
     if (logs.length === 0) {
-      return Response.json({ message: 'No workout data to export' }, { status: 200 });
+      return Response.json({ message: 'No workout data for this week' }, { status: 200 });
     }
 
     const csv = generateWorkoutCsv(logs);
 
-    const today = new Date();
     const dateStr = today.toISOString().split('T')[0];
-    const fileName = `workout-export-${dateStr}.csv`;
-
-    const firstDate = logs[0].loggedAt;
-    const lastDate = logs[logs.length - 1].loggedAt;
-    const dateRange = `${formatDate(firstDate)} to ${formatDate(lastDate)}`;
+    const weekAgoStr = weekAgo.toISOString().split('T')[0];
+    const fileName = `workout-weekly-${dateStr}.csv`;
 
     const totalSets = logs.length;
     const totalReps = logs.reduce((acc, log) => acc + log.reps, 0);
@@ -36,13 +36,13 @@ export async function GET() {
     await resend.emails.send({
       from: 'IRON <onboarding@resend.dev>',
       to: process.env.EXPORT_EMAIL,
-      subject: `Weekly IRON Workout Export - ${dateStr}`,
+      subject: `Weekly IRON Workout Summary - ${dateStr}`,
       html: `
-        <p>Your weekly workout data export is attached.</p>
+        <p>Your weekly workout summary is attached.</p>
         <ul>
+          <li><strong>Week:</strong> ${weekAgoStr} to ${dateStr}</li>
           <li><strong>Total Sets:</strong> ${totalSets}</li>
           <li><strong>Total Reps:</strong> ${totalReps}</li>
-          <li><strong>Date Range:</strong> ${dateRange}</li>
         </ul>
       `,
       attachments: [
@@ -54,23 +54,18 @@ export async function GET() {
     });
 
     return Response.json({
-      message: 'Export sent successfully',
+      message: 'Weekly export sent successfully',
       stats: {
         totalSets,
         totalReps,
-        dateRange,
+        dateRange: `${weekAgoStr} to ${dateStr}`,
       },
     });
   } catch (error) {
-    console.error('Export error:', error);
+    console.error('Weekly export error:', error);
     return Response.json(
-      { error: 'Failed to generate and send export' },
+      { error: 'Failed to generate and send weekly export' },
       { status: 500 }
     );
   }
 }
-
-function formatDate(date: Date): string {
-  return date.toISOString().split('T')[0];
-}
-

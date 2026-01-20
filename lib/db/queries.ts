@@ -588,3 +588,35 @@ export async function getAllWorkoutLogsForExport(): Promise<WorkoutLogExport[]> 
     weight: parseFloat(row.weight as string),
   }));
 }
+
+export async function getWorkoutLogsForDateRange(
+  startDate: Date,
+  endDate: Date
+): Promise<WorkoutLogExport[]> {
+  const startIso = startDate.toISOString();
+  const endIso = endDate.toISOString();
+
+  const { rows } = await sql`
+    SELECT
+      w.name as "workoutName",
+      COALESCE(wl.exercise_name, e.name) as "exerciseName",
+      wl.logged_at as "loggedAt",
+      wl.set_number as "setNumber",
+      wl.reps,
+      wl.weight
+    FROM workout_logs wl
+    JOIN exercises e ON e.id = wl.exercise_id
+    JOIN workouts w ON w.id = wl.workout_id
+    WHERE wl.logged_at >= ${startIso} AND wl.logged_at < ${endIso}
+    ORDER BY wl.logged_at ASC;
+  `;
+
+  return rows.map((row) => ({
+    workoutName: row.workoutName as string,
+    exerciseName: row.exerciseName as string,
+    loggedAt: new Date(row.loggedAt as string),
+    setNumber: row.setNumber as number,
+    reps: row.reps as number,
+    weight: parseFloat(row.weight as string),
+  }));
+}
