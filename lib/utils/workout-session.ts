@@ -62,7 +62,35 @@ export function isSessionValid(session: WorkoutSession): boolean {
     return false;
   }
 
+  // Check for inactivity timeout (30 minutes)
+  // Use lastSetTime if available, otherwise use startedAt
+  if (session.startedAt) {
+    const referenceTime = session.lastSetTime 
+      ? new Date(session.lastSetTime) 
+      : new Date(session.startedAt);
+    const now = new Date();
+    const inactiveMs = now.getTime() - referenceTime.getTime();
+    const thirtyMinutesMs = 30 * 60 * 1000;
+    if (inactiveMs > thirtyMinutesMs) {
+      return false;
+    }
+  }
+
   return true;
+}
+
+export function formatElapsedTime(startedAt: Date): string {
+  const now = new Date();
+  const elapsedMs = now.getTime() - startedAt.getTime();
+  const totalSeconds = Math.floor(elapsedMs / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
 export function buildExerciseProgress(

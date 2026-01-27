@@ -62,4 +62,5 @@ export interface WorkoutSession {
   lastSetTime: string | null;
   sessionDate: string;
   exerciseProgress: [number, ExerciseProgress][];
+  startedAt: string | null; // ISO timestamp when workout was started
 }

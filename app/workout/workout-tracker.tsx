@@ -17,6 +17,7 @@ import {
   clearWorkoutSession,
   buildExerciseProgress,
   getTodayDate,
+  formatElapsedTime,
 } from '@/lib/utils/workout-session';
 
 interface WorkoutTrackerProps {
@@ -41,6 +42,10 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
   const [lastSessionSets, setLastSessionSets] = useState<Array<{ setNumber: number; reps: number; weight: number }>>([]);
   const [exerciseProgress, setExerciseProgress] = useState<Map<number, ExerciseProgress>>(new Map());
   const [isRestoringSession, setIsRestoringSession] = useState(true);
+  const [startedAt, setStartedAt] = useState<Date | null>(null);
+  const [elapsedTime, setElapsedTime] = useState<string>('0:00');
+
+  const isWorkoutActive = startedAt !== null;
 
   const currentExercise = workout.exercises[exerciseIndex];
   const isLastExercise = exerciseIndex === workout.exercises.length - 1;
@@ -60,6 +65,7 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
       setFirstSetTime(null);
       setLastSetTime(null);
       setExerciseProgress(new Map());
+      setStartedAt(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialWorkout.id]);
@@ -110,6 +116,7 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
         setFirstSetTime(savedSession.firstSetTime ? new Date(savedSession.firstSetTime) : null);
         setLastSetTime(savedSession.lastSetTime ? new Date(savedSession.lastSetTime) : null);
         setExerciseProgress(new Map(savedSession.exerciseProgress));
+        setStartedAt(savedSession.startedAt ? new Date(savedSession.startedAt) : null);
       } else {
         // No valid session - fetch today's logs from DB
         const result = await getTodayLogsAction(currentWorkoutId);
@@ -218,8 +225,8 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
 
   // Auto-save session to localStorage
   useEffect(() => {
-    // Don't save during restoration or if no sets logged yet
-    if (isRestoringSession || totalSetsLogged === 0) return;
+    // Don't save during restoration or if workout not started
+    if (isRestoringSession || !startedAt) return;
 
     // Debounce saves to avoid excessive writes
     const timeoutId = setTimeout(() => {
@@ -233,6 +240,7 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
         lastSetTime: lastSetTime?.toISOString() ?? null,
         sessionDate: getTodayDate(),
         exerciseProgress: Array.from(exerciseProgress.entries()),
+        startedAt: startedAt?.toISOString() ?? null,
       };
 
       saveWorkoutSession(session);
@@ -249,7 +257,43 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
     lastSetTime,
     exerciseProgress,
     isRestoringSession,
+    startedAt,
   ]);
+
+  // Timer effect - update elapsed time every second when workout is active
+  useEffect(() => {
+    if (!startedAt) return;
+
+    const updateTimer = () => {
+      setElapsedTime(formatElapsedTime(startedAt));
+    };
+
+    updateTimer(); // Initial update
+    const intervalId = setInterval(updateTimer, 1000);
+
+    return () => clearInterval(intervalId);
+  }, [startedAt]);
+
+  // Auto-end workout after 30 minutes of inactivity
+  useEffect(() => {
+    if (!isWorkoutActive || !lastSetTime) return;
+
+    const checkInactivity = () => {
+      const now = new Date();
+      const inactiveMs = now.getTime() - lastSetTime.getTime();
+      const thirtyMinutesMs = 30 * 60 * 1000;
+
+      if (inactiveMs > thirtyMinutesMs) {
+        handleEndWorkout();
+      }
+    };
+
+    const intervalId = setInterval(checkInactivity, 30000); // Check every 30 seconds
+
+    return () => clearInterval(intervalId);
+    // handleEndWorkout is stable (only calls clearWorkoutSession and setIsComplete)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isWorkoutActive, lastSetTime]);
 
   async function handleLogSet(reps: number, weight: number) {
     setIsLoading(true);
@@ -313,13 +357,43 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
 
   function handleNextExercise() {
     if (isLastExercise) {
-      clearWorkoutSession();
-      setIsComplete(true);
+      handleEndWorkout();
     } else {
       setExerciseIndex((prev) => prev + 1);
       setCurrentSet(1);
       setExtraSetUsed(false);
     }
+  }
+
+  function handleStartWorkout() {
+    const now = new Date();
+    setStartedAt(now);
+    // Reset set times for fresh session (prevents old DB-restored times from being used)
+    setFirstSetTime(null);
+    setLastSetTime(null);
+    
+    // Save session immediately so it persists across tab navigation
+    // Note: We preserve exercise progress from DB but don't carry over old set times
+    // since this is a fresh workout start
+    saveWorkoutSession({
+      workoutId: workout.id,
+      exerciseIndex,
+      currentSet,
+      extraSetUsed,
+      totalSetsLogged,
+      firstSetTime: null,
+      lastSetTime: null,
+      sessionDate: getTodayDate(),
+      exerciseProgress: Array.from(exerciseProgress.entries()),
+      startedAt: now.toISOString(),
+    });
+    
+    toast.success('Workout started!');
+  }
+
+  function handleEndWorkout() {
+    clearWorkoutSession();
+    setIsComplete(true);
   }
 
   async function handleChangeWorkout(workoutId: string) {
@@ -346,6 +420,7 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
     setFirstSetTime(null);
     setLastSetTime(null);
     setExerciseProgress(new Map());
+    setStartedAt(null);
     setIsLoading(false);
 
     // Update URL for deep linking
@@ -425,17 +500,24 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
     <div className="container mx-auto p-4 max-w-2xl space-y-6">
       {/* Workout selector */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
-        <h1 className="text-2xl font-bold">{workout.name}</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold">{workout.name}</h1>
+          {isWorkoutActive && (
+            <span className="text-lg font-mono text-muted-foreground">{elapsedTime}</span>
+          )}
+        </div>
 
         <div className="flex items-center gap-2">
-          <ExerciseList
-            exercises={workout.exercises}
-            currentExerciseIndex={exerciseIndex}
-            exerciseProgress={exerciseProgress}
-            onSelectExercise={handleSelectExercise}
-          />
+          {isWorkoutActive && (
+            <ExerciseList
+              exercises={workout.exercises}
+              currentExerciseIndex={exerciseIndex}
+              exerciseProgress={exerciseProgress}
+              onSelectExercise={handleSelectExercise}
+            />
+          )}
 
-          <Select value={workout.id.toString()} onValueChange={handleChangeWorkout}>
+          <Select value={workout.id.toString()} onValueChange={handleChangeWorkout} disabled={isWorkoutActive}>
             <SelectTrigger className="w-[180px]">
               <SelectValue />
             </SelectTrigger>
@@ -450,10 +532,17 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
         </div>
       </div>
 
-      {/* Progress */}
-      <div className="text-sm text-muted-foreground">
-        Exercise {exerciseIndex + 1} of {workout.exercises.length}
-      </div>
+      {/* Start/End Workout buttons */}
+      {!isWorkoutActive ? (
+        <Button size="lg" className="w-full h-16 text-xl" onClick={handleStartWorkout}>
+          Start Workout
+        </Button>
+      ) : (
+        <>
+          {/* Progress */}
+          <div className="text-sm text-muted-foreground">
+            Exercise {exerciseIndex + 1} of {workout.exercises.length}
+          </div>
 
       {/* Exercise info */}
       <ExerciseDisplay
@@ -518,6 +607,18 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
             {isLastExercise ? 'Finish Workout' : 'Next Exercise'}
           </Button>
         </div>
+      )}
+
+          {/* End Workout button */}
+          <Button
+            size="lg"
+            variant="outline"
+            className="w-full"
+            onClick={handleEndWorkout}
+          >
+            End Workout
+          </Button>
+        </>
       )}
     </div>
   );
