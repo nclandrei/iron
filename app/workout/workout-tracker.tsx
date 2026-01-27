@@ -164,7 +164,7 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workout.id]); // Only run when workout changes
 
-  // Load last logged values for current exercise
+  // Load last logged values for current exercise (only on first set)
   useEffect(() => {
     async function loadLastLog() {
       const result = await getLastLogAction(currentExercise.id);
@@ -209,7 +209,11 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
         }
       }
     }
-    loadLastLog();
+    // Only load suggestions for the first set of each exercise
+    // Subsequent sets will use the weight from the first logged set (via handleLogSet)
+    if (currentSet === 1) {
+      loadLastLog();
+    }
   }, [currentExercise.id, currentExercise.defaultWeight, currentSet]);
 
   // Auto-save session to localStorage
