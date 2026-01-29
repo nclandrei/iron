@@ -40,6 +40,7 @@ export interface SetLogInput {
   reps: number;
   weight: number;
   grip?: string | null; // Grip used for this set
+  exerciseName?: string; // Override exercise name (for temporary swaps)
 }
 
 export interface ExerciseWithLastLog extends Exercise {

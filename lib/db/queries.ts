@@ -150,7 +150,7 @@ export async function logSet(input: SetLogInput): Promise<WorkoutLog> {
       ${input.setNumber},
       ${input.reps},
       ${input.weight},
-      e.name,
+      COALESCE(${input.exerciseName || null}, e.name),
       ${input.grip || null}
     FROM exercises e
     WHERE e.id = ${input.exerciseId}

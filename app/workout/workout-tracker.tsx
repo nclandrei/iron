@@ -372,6 +372,7 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
       reps,
       weight,
       grip: currentGrip,
+      exerciseName: effectiveExerciseName,
     });
 
     setIsLoading(false);
