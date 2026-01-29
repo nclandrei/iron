@@ -21,3 +21,16 @@
 - API routes in `app/api/` using Next.js Route Handlers
 - Prefer async/await, handle errors with try/catch and console.error
 - Use TypeScript strict mode; avoid `any` except in generic DB query wrappers
+
+## Testing with Visual Feedback Loops
+
+When implementing UI features, use Chrome DevTools MCP to verify your work:
+
+1. **Understand expectations**: Pick up visual requirements from the conversation (descriptions, mockups, or iterative discussion)
+2. **Launch Chrome DevTools MCP**: Start browser automation to capture the app state
+3. **Implement incrementally**: Make small changes, then verify each step
+4. **Take screenshots**: After each significant change, capture a screenshot
+5. **Compare to expectations**: Check layout, spacing, colors, interactions against what was discussed
+6. **Iterate**: If the result doesn't match, adjust and re-verify before moving on
+
+This prevents drift between what was discussed and what gets built, catching issues early.
