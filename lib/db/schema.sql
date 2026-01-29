@@ -1,11 +1,59 @@
--- Workouts table: 4 workout templates
+-- Better Auth tables
+CREATE TABLE IF NOT EXISTS "user" (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL UNIQUE,
+  email_verified BOOLEAN NOT NULL DEFAULT FALSE,
+  image TEXT,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS session (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+  token TEXT NOT NULL UNIQUE,
+  expires_at TIMESTAMP NOT NULL,
+  ip_address TEXT,
+  user_agent TEXT,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS account (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+  account_id TEXT NOT NULL,
+  provider_id TEXT NOT NULL,
+  access_token TEXT,
+  refresh_token TEXT,
+  access_token_expires_at TIMESTAMP,
+  refresh_token_expires_at TIMESTAMP,
+  scope TEXT,
+  id_token TEXT,
+  password TEXT,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS verification (
+  id TEXT PRIMARY KEY,
+  identifier TEXT NOT NULL,
+  value TEXT NOT NULL,
+  expires_at TIMESTAMP NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+-- Workouts table: 4 workout templates (per user)
 CREATE TABLE IF NOT EXISTS workouts (
   id SERIAL PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
   name VARCHAR(50) NOT NULL,
   day_of_week INTEGER NOT NULL,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
-  UNIQUE(name, day_of_week)
+  UNIQUE(user_id, name, day_of_week)
 );
 
 -- Exercises table: exercises within each workout

@@ -8,11 +8,22 @@ import type {
   SetLogInput,
 } from '../types';
 
-// Get all workouts
-export async function getWorkouts(): Promise<Workout[]> {
+// Get all workouts for a user
+export async function getWorkouts(userId?: string): Promise<Workout[]> {
+  if (userId) {
+    const { rows } = await sql`
+      SELECT id, name, day_of_week as "dayOfWeek", created_at as "createdAt", updated_at as "updatedAt"
+      FROM workouts
+      WHERE user_id = ${userId}
+      ORDER BY day_of_week;
+    `;
+    return rows as Workout[];
+  }
+  // Fallback for migration: return workouts without user_id
   const { rows } = await sql`
     SELECT id, name, day_of_week as "dayOfWeek", created_at as "createdAt", updated_at as "updatedAt"
     FROM workouts
+    WHERE user_id IS NULL
     ORDER BY day_of_week;
   `;
   return rows as Workout[];
@@ -56,15 +67,22 @@ export async function getWorkoutWithExercises(
   };
 }
 
-// Get workout by day of week
+// Get workout by day of week for a user
 export async function getWorkoutByDay(
-  dayOfWeek: number
+  dayOfWeek: number,
+  userId?: string
 ): Promise<WorkoutWithExercises | null> {
-  const { rows: workoutRows } = await sql`
-    SELECT id, name, day_of_week as "dayOfWeek", created_at as "createdAt", updated_at as "updatedAt"
-    FROM workouts
-    WHERE day_of_week = ${dayOfWeek};
-  `;
+  const { rows: workoutRows } = userId
+    ? await sql`
+        SELECT id, name, day_of_week as "dayOfWeek", created_at as "createdAt", updated_at as "updatedAt"
+        FROM workouts
+        WHERE day_of_week = ${dayOfWeek} AND user_id = ${userId};
+      `
+    : await sql`
+        SELECT id, name, day_of_week as "dayOfWeek", created_at as "createdAt", updated_at as "updatedAt"
+        FROM workouts
+        WHERE day_of_week = ${dayOfWeek} AND user_id IS NULL;
+      `;
 
   if (workoutRows.length === 0) return null;
 
@@ -589,20 +607,36 @@ export interface WorkoutLogExport {
   weight: number;
 }
 
-export async function getAllWorkoutLogsForExport(): Promise<WorkoutLogExport[]> {
-  const { rows } = await sql`
-    SELECT
-      w.name as "workoutName",
-      COALESCE(wl.exercise_name, e.name) as "exerciseName",
-      wl.logged_at as "loggedAt",
-      wl.set_number as "setNumber",
-      wl.reps,
-      wl.weight
-    FROM workout_logs wl
-    JOIN exercises e ON e.id = wl.exercise_id
-    JOIN workouts w ON w.id = wl.workout_id
-    ORDER BY wl.logged_at ASC;
-  `;
+export async function getAllWorkoutLogsForExport(userId?: string): Promise<WorkoutLogExport[]> {
+  const { rows } = userId
+    ? await sql`
+        SELECT
+          w.name as "workoutName",
+          COALESCE(wl.exercise_name, e.name) as "exerciseName",
+          wl.logged_at as "loggedAt",
+          wl.set_number as "setNumber",
+          wl.reps,
+          wl.weight
+        FROM workout_logs wl
+        JOIN exercises e ON e.id = wl.exercise_id
+        JOIN workouts w ON w.id = wl.workout_id
+        WHERE w.user_id = ${userId}
+        ORDER BY wl.logged_at ASC;
+      `
+    : await sql`
+        SELECT
+          w.name as "workoutName",
+          COALESCE(wl.exercise_name, e.name) as "exerciseName",
+          wl.logged_at as "loggedAt",
+          wl.set_number as "setNumber",
+          wl.reps,
+          wl.weight
+        FROM workout_logs wl
+        JOIN exercises e ON e.id = wl.exercise_id
+        JOIN workouts w ON w.id = wl.workout_id
+        WHERE w.user_id IS NULL
+        ORDER BY wl.logged_at ASC;
+      `;
 
   return rows.map((row) => ({
     workoutName: row.workoutName as string,
