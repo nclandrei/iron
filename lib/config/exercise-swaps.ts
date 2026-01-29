@@ -20,6 +20,7 @@ export const exerciseSwapMap: Record<string, ExerciseAlternative[]> = {
     { name: 'Flat BB press', defaultWeight: 80 },
     { name: 'Pec fly', defaultWeight: 73 },
     { name: 'Dips', defaultWeight: 0 },
+    { name: 'Assisted dips', defaultWeight: 0 },
   ],
   'Pec fly': [
     { name: 'Incline DB press', defaultWeight: 26 },
