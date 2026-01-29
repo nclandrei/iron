@@ -4,7 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import type { WorkoutWithExercises, Workout, ExerciseProgress, Exercise, WorkoutLog, TemporarySwap } from '@/lib/types';
 import type { ExerciseAlternative } from '@/lib/config/exercise-swaps';
-import { logSetAction, getLastLogAction, getWorkoutAction, getExerciseSuggestionAction, getTodayLogsAction, getLastSessionSetsAction, swapExercisePermanentlyAction } from './actions';
+import { getGripConfig, getDefaultGrip, hasGripOptions, type GripType } from '@/lib/config/exercise-grips';
+import { logSetAction, getLastLogAction, getLastGripAction, getWorkoutAction, getExerciseSuggestionAction, getTodayLogsAction, getLastSessionSetsAction, swapExercisePermanentlyAction } from './actions';
 import { ExerciseDisplay } from '@/components/workout/exercise-display';
 import { SetLogger } from '@/components/workout/set-logger';
 import { ExerciseList } from '@/components/workout/exercise-list';
@@ -46,6 +47,7 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
   const [startedAt, setStartedAt] = useState<Date | null>(null);
   const [elapsedTime, setElapsedTime] = useState<string>('0:00');
   const [temporarySwaps, setTemporarySwaps] = useState<TemporarySwap[]>([]);
+  const [currentGrips, setCurrentGrips] = useState<Record<number, GripType>>({});
 
   const isWorkoutActive = startedAt !== null;
 
@@ -57,6 +59,15 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
   // Get display name for current exercise (check for temporary swap)
   const currentExerciseSwap = temporarySwaps.find(s => s.originalExerciseId === currentExercise.id);
   const currentExerciseDisplayName = currentExerciseSwap?.swappedName;
+
+  // Get effective exercise name (swapped or original)
+  const effectiveExerciseName = currentExerciseDisplayName || currentExercise.name;
+  
+  // Get current grip for this exercise (if it has grip options)
+  const exerciseHasGrips = hasGripOptions(effectiveExerciseName);
+  const currentGrip = exerciseHasGrips 
+    ? (currentGrips[currentExercise.id] || getDefaultGrip(effectiveExerciseName))
+    : null;
 
   // Sync workout state when initialWorkout prop changes (only if workout ID actually changed)
   // This handles cases where the URL changes directly (e.g., browser back/forward)
@@ -73,6 +84,7 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
       setExerciseProgress(new Map());
       setStartedAt(null);
       setTemporarySwaps([]);
+      setCurrentGrips({});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialWorkout.id]);
@@ -125,6 +137,7 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
         setExerciseProgress(new Map(savedSession.exerciseProgress));
         setStartedAt(savedSession.startedAt ? new Date(savedSession.startedAt) : null);
         setTemporarySwaps(savedSession.temporarySwaps || []);
+        setCurrentGrips((savedSession.currentGrips || {}) as Record<number, GripType>);
       } else {
         // No valid session - fetch today's logs from DB
         const result = await getTodayLogsAction(currentWorkoutId);
@@ -182,9 +195,44 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
   // Load last logged values for current exercise (only on first set)
   useEffect(() => {
     async function loadLastLog() {
+      // Get effective exercise name for grip check
+      const swap = temporarySwaps.find(s => s.originalExerciseId === currentExercise.id);
+      const exerciseName = swap?.swappedName || currentExercise.name;
+      const exerciseSupportsGrips = hasGripOptions(exerciseName);
+      
+      // Determine which grip to use for fetching suggestions
+      let gripToUse: GripType | null = null;
+      
+      if (exerciseSupportsGrips) {
+        // Check if we already have a grip set in state (from session restore)
+        if (currentGrips[currentExercise.id]) {
+          gripToUse = currentGrips[currentExercise.id];
+        } else {
+          // Try to get last used grip from DB
+          const lastGripResult = await getLastGripAction(currentExercise.id);
+          if (lastGripResult.success && lastGripResult.lastGrip) {
+            gripToUse = lastGripResult.lastGrip as GripType;
+            // Set the grip in state
+            setCurrentGrips((prev) => ({
+              ...prev,
+              [currentExercise.id]: gripToUse!,
+            }));
+          } else {
+            // Fall back to default grip
+            gripToUse = getDefaultGrip(exerciseName);
+            if (gripToUse) {
+              setCurrentGrips((prev) => ({
+                ...prev,
+                [currentExercise.id]: gripToUse!,
+              }));
+            }
+          }
+        }
+      }
+      
       const result = await getLastLogAction(currentExercise.id);
-      const suggestionResult = await getExerciseSuggestionAction(currentExercise.id);
-      const lastSessionResult = await getLastSessionSetsAction(currentExercise.id);
+      const suggestionResult = await getExerciseSuggestionAction(currentExercise.id, gripToUse);
+      const lastSessionResult = await getLastSessionSetsAction(currentExercise.id, gripToUse);
 
       // Store last session sets for reference
       if (lastSessionResult.success && lastSessionResult.sets) {
@@ -229,6 +277,7 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
     if (currentSet === 1) {
       loadLastLog();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentExercise.id, currentExercise.defaultWeight, currentSet]);
 
   // Auto-save session to localStorage
@@ -250,6 +299,7 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
         exerciseProgress: Array.from(exerciseProgress.entries()),
         startedAt: startedAt?.toISOString() ?? null,
         temporarySwaps,
+        currentGrips,
       };
 
       saveWorkoutSession(session);
@@ -268,6 +318,7 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
     isRestoringSession,
     startedAt,
     temporarySwaps,
+    currentGrips,
   ]);
 
   // Timer effect - update elapsed time every second when workout is active
@@ -320,6 +371,7 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
       setNumber: currentSet,
       reps,
       weight,
+      grip: currentGrip,
     });
 
     setIsLoading(false);
@@ -397,6 +449,7 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
       exerciseProgress: Array.from(exerciseProgress.entries()),
       startedAt: now.toISOString(),
       temporarySwaps: [],
+      currentGrips: {},
     });
     
     toast.success('Workout started!');
@@ -433,10 +486,56 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
     setExerciseProgress(new Map());
     setStartedAt(null);
     setTemporarySwaps([]);
+    setCurrentGrips({});
     setIsLoading(false);
 
     // Update URL for deep linking
     router.replace(`/workout?id=${workoutId}`, { scroll: false });
+  }
+
+  function handleGripChange(grip: GripType) {
+    setCurrentGrips((prev) => ({
+      ...prev,
+      [currentExercise.id]: grip,
+    }));
+    // Reload suggestions for the new grip
+    loadSuggestionsForGrip(grip);
+  }
+
+  async function loadSuggestionsForGrip(grip: GripType) {
+    const suggestionResult = await getExerciseSuggestionAction(currentExercise.id, grip);
+    const lastSessionResult = await getLastSessionSetsAction(currentExercise.id, grip);
+
+    // Store last session sets for reference
+    if (lastSessionResult.success && lastSessionResult.sets) {
+      setLastSessionSets(lastSessionResult.sets);
+    } else {
+      setLastSessionSets([]);
+    }
+
+    if (suggestionResult.success && suggestionResult.suggestion) {
+      const suggestion = suggestionResult.suggestion;
+      setDefaultValues({
+        reps: suggestion.suggestedReps,
+        weight: suggestion.suggestedWeight,
+      });
+      if (suggestion.shouldIncreaseWeight) {
+        setSuggestion({
+          type: 'weight',
+          message: `Increase to ${suggestion.suggestedWeight}kg`,
+        });
+      } else {
+        setSuggestion({
+          type: 'reps',
+          message: `Aim for ${suggestion.suggestedReps} reps`,
+        });
+      }
+    } else {
+      setSuggestion(undefined);
+      setDefaultValues({
+        weight: currentExercise.defaultWeight,
+      });
+    }
   }
 
   async function handleSwapExercise(alternative: ExerciseAlternative, permanent: boolean) {
@@ -599,7 +698,9 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
         currentSet={currentSet}
         totalSets={maxSets}
         displayName={currentExerciseDisplayName}
+        currentGrip={currentGrip}
         onSwap={handleSwapExercise}
+        onGripChange={exerciseHasGrips ? handleGripChange : undefined}
       />
 
       {/* Set logger */}

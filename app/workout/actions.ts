@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { logSet as dbLogSet, getLastLogForExercise, getWorkoutWithExercises, getExerciseAverageRepsPastWeek, updateExercise } from '@/lib/db/queries';
+import { logSet as dbLogSet, getLastLogForExercise, getLastGripForExercise, getWorkoutWithExercises, getExerciseAverageRepsPastWeek, updateExercise } from '@/lib/db/queries';
 import { sql } from '@/lib/db/client';
 import type { SetLogInput, Exercise } from '@/lib/types';
 import type { ExerciseAlternative } from '@/lib/config/exercise-swaps';
@@ -26,17 +26,38 @@ export async function getLastLogAction(exerciseId: number) {
   }
 }
 
-export async function getLastSessionSetsAction(exerciseId: number) {
+export async function getLastGripAction(exerciseId: number) {
+  try {
+    const lastGrip = await getLastGripForExercise(exerciseId);
+    return { success: true, lastGrip };
+  } catch (error) {
+    console.error('Error fetching last grip:', error);
+    return { success: false, error: 'Failed to fetch last grip' };
+  }
+}
+
+export async function getLastSessionSetsAction(exerciseId: number, grip?: string | null) {
   try {
     // Get all sets from the last session for this exercise (excluding today)
-    const { rows } = await sql`
-      SELECT reps, weight, set_number as "setNumber", DATE(logged_at) as session_date
-      FROM workout_logs
-      WHERE exercise_id = ${exerciseId}
-        AND DATE(logged_at) < CURRENT_DATE
-      ORDER BY logged_at DESC
-      LIMIT 10;
-    `;
+    // Filter by grip if provided
+    const { rows } = grip
+      ? await sql`
+          SELECT reps, weight, set_number as "setNumber", DATE(logged_at) as session_date
+          FROM workout_logs
+          WHERE exercise_id = ${exerciseId}
+            AND DATE(logged_at) < CURRENT_DATE
+            AND grip = ${grip}
+          ORDER BY logged_at DESC
+          LIMIT 10;
+        `
+      : await sql`
+          SELECT reps, weight, set_number as "setNumber", DATE(logged_at) as session_date
+          FROM workout_logs
+          WHERE exercise_id = ${exerciseId}
+            AND DATE(logged_at) < CURRENT_DATE
+          ORDER BY logged_at DESC
+          LIMIT 10;
+        `;
 
     if (rows.length === 0) {
       return { success: true, sets: [] };
@@ -80,7 +101,7 @@ export async function getWorkoutAction(workoutId: number) {
   }
 }
 
-export async function getExerciseSuggestionAction(exerciseId: number) {
+export async function getExerciseSuggestionAction(exerciseId: number, grip?: string | null) {
   try {
     // Fetch exercise config
     const { rows } = await sql`
@@ -100,14 +121,25 @@ export async function getExerciseSuggestionAction(exerciseId: number) {
     const exercise = rows[0] as Pick<Exercise, 'targetRepsMin' | 'targetRepsMax' | 'defaultWeight'>;
 
     // Get all sets from the last session for this exercise (excluding today)
-    const { rows: lastSessionRows } = await sql`
-      SELECT reps, weight, DATE(logged_at) as session_date
-      FROM workout_logs
-      WHERE exercise_id = ${exerciseId}
-        AND DATE(logged_at) < CURRENT_DATE
-      ORDER BY logged_at DESC
-      LIMIT 10;
-    `;
+    // Filter by grip if provided
+    const { rows: lastSessionRows } = grip
+      ? await sql`
+          SELECT reps, weight, DATE(logged_at) as session_date
+          FROM workout_logs
+          WHERE exercise_id = ${exerciseId}
+            AND DATE(logged_at) < CURRENT_DATE
+            AND grip = ${grip}
+          ORDER BY logged_at DESC
+          LIMIT 10;
+        `
+      : await sql`
+          SELECT reps, weight, DATE(logged_at) as session_date
+          FROM workout_logs
+          WHERE exercise_id = ${exerciseId}
+            AND DATE(logged_at) < CURRENT_DATE
+          ORDER BY logged_at DESC
+          LIMIT 10;
+        `;
 
     // No history - return no suggestion
     if (lastSessionRows.length === 0) {
