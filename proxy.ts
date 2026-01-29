@@ -1,14 +1,19 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+// Public routes that don't require authentication
+const publicPaths = ['/login', '/signup'];
+
 export async function proxy(request: NextRequest) {
-  // Allow access to login page and API routes
-  if (request.nextUrl.pathname === '/login' || request.nextUrl.pathname.startsWith('/api')) {
+  const { pathname } = request.nextUrl;
+
+  // Allow access to public pages and API routes
+  if (publicPaths.includes(pathname) || pathname.startsWith('/api')) {
     return NextResponse.next();
   }
 
-  // Check for session cookie
-  const sessionCookie = request.cookies.get('workout_session');
+  // Check for Better Auth session cookie
+  const sessionCookie = request.cookies.get('better-auth.session_token');
 
   if (!sessionCookie) {
     return NextResponse.redirect(new URL('/login', request.url));
