@@ -1,12 +1,1 @@
-{
-  "crons": [
-    {
-      "path": "/api/export/weekly",
-      "schedule": "0 9 * * 0"
-    },
-    {
-      "path": "/api/export/full",
-      "schedule": "0 9 1 * *"
-    }
-  ]
-}
+{}
