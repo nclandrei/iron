@@ -1,9 +1,15 @@
 import { getAllWorkoutLogsForExport } from '@/lib/db/queries';
 import { generateWorkoutCsv } from '@/lib/utils/csv-export';
+import { getCurrentUser } from '@/lib/auth/session';
 
 export async function GET() {
   try {
-    const logs = await getAllWorkoutLogsForExport();
+    const user = await getCurrentUser();
+    if (!user) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const logs = await getAllWorkoutLogsForExport(user.id);
 
     if (logs.length === 0) {
       return Response.json({ message: 'No workout data to export' }, { status: 200 });
