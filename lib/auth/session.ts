@@ -1,16 +1,42 @@
-import { getIronSession, IronSession } from 'iron-session';
-import { cookies } from 'next/headers';
-import { sessionOptions } from './config';
+import { headers } from 'next/headers';
+import { auth } from '@/lib/auth';
 
-export interface SessionData {
-  isAuthenticated: boolean;
-}
+export type User = {
+  id: string;
+  name: string;
+  email: string;
+  image?: string | null;
+};
 
-export async function getSession(): Promise<IronSession<SessionData>> {
-  return getIronSession<SessionData>(await cookies(), sessionOptions);
+export type Session = {
+  user: User;
+  session: {
+    id: string;
+    expiresAt: Date;
+  };
+};
+
+export async function getSession(): Promise<Session | null> {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+  return session;
 }
 
 export async function isAuthenticated(): Promise<boolean> {
   const session = await getSession();
-  return session.isAuthenticated === true;
+  return session !== null;
+}
+
+export async function getCurrentUser(): Promise<User | null> {
+  const session = await getSession();
+  return session?.user ?? null;
+}
+
+export async function requireAuth(): Promise<Session> {
+  const session = await getSession();
+  if (!session) {
+    throw new Error('Unauthorized');
+  }
+  return session;
 }
