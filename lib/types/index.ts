@@ -26,6 +26,7 @@ export interface WorkoutLog {
   reps: number;
   weight: number;
   exerciseName?: string; // Snapshot of exercise name at log time
+  grip?: string | null; // Grip used for this set (for exercises with grip variations)
 }
 
 export interface WorkoutWithExercises extends Workout {
@@ -38,6 +39,7 @@ export interface SetLogInput {
   setNumber: number;
   reps: number;
   weight: number;
+  grip?: string | null; // Grip used for this set
 }
 
 export interface ExerciseWithLastLog extends Exercise {
@@ -70,4 +72,5 @@ export interface WorkoutSession {
   exerciseProgress: [number, ExerciseProgress][];
   startedAt: string | null; // ISO timestamp when workout was started
   temporarySwaps?: TemporarySwap[]; // Swaps that only apply to this session
+  currentGrips?: Record<number, string>; // exerciseId -> current grip for this session
 }
