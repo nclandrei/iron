@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import type { WorkoutWithExercises, Workout, ExerciseProgress, Exercise, WorkoutLog } from '@/lib/types';
-import { logSetAction, getLastLogAction, getWorkoutAction, getExerciseSuggestionAction, getTodayLogsAction, getLastSessionSetsAction } from './actions';
+import type { WorkoutWithExercises, Workout, ExerciseProgress, Exercise, WorkoutLog, TemporarySwap } from '@/lib/types';
+import type { ExerciseAlternative } from '@/lib/config/exercise-swaps';
+import { logSetAction, getLastLogAction, getWorkoutAction, getExerciseSuggestionAction, getTodayLogsAction, getLastSessionSetsAction, swapExercisePermanentlyAction } from './actions';
 import { ExerciseDisplay } from '@/components/workout/exercise-display';
 import { SetLogger } from '@/components/workout/set-logger';
 import { ExerciseList } from '@/components/workout/exercise-list';
@@ -44,6 +45,7 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
   const [isRestoringSession, setIsRestoringSession] = useState(true);
   const [startedAt, setStartedAt] = useState<Date | null>(null);
   const [elapsedTime, setElapsedTime] = useState<string>('0:00');
+  const [temporarySwaps, setTemporarySwaps] = useState<TemporarySwap[]>([]);
 
   const isWorkoutActive = startedAt !== null;
 
@@ -51,6 +53,10 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
   const isLastExercise = exerciseIndex === workout.exercises.length - 1;
   const maxSets = currentExercise.targetSets + (extraSetUsed ? 0 : 1); // Allow 1 extra
   const completedTargetSets = currentSet > currentExercise.targetSets;
+
+  // Get display name for current exercise (check for temporary swap)
+  const currentExerciseSwap = temporarySwaps.find(s => s.originalExerciseId === currentExercise.id);
+  const currentExerciseDisplayName = currentExerciseSwap?.swappedName;
 
   // Sync workout state when initialWorkout prop changes (only if workout ID actually changed)
   // This handles cases where the URL changes directly (e.g., browser back/forward)
@@ -66,6 +72,7 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
       setLastSetTime(null);
       setExerciseProgress(new Map());
       setStartedAt(null);
+      setTemporarySwaps([]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialWorkout.id]);
@@ -117,6 +124,7 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
         setLastSetTime(savedSession.lastSetTime ? new Date(savedSession.lastSetTime) : null);
         setExerciseProgress(new Map(savedSession.exerciseProgress));
         setStartedAt(savedSession.startedAt ? new Date(savedSession.startedAt) : null);
+        setTemporarySwaps(savedSession.temporarySwaps || []);
       } else {
         // No valid session - fetch today's logs from DB
         const result = await getTodayLogsAction(currentWorkoutId);
@@ -241,6 +249,7 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
         sessionDate: getTodayDate(),
         exerciseProgress: Array.from(exerciseProgress.entries()),
         startedAt: startedAt?.toISOString() ?? null,
+        temporarySwaps,
       };
 
       saveWorkoutSession(session);
@@ -258,6 +267,7 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
     exerciseProgress,
     isRestoringSession,
     startedAt,
+    temporarySwaps,
   ]);
 
   // Timer effect - update elapsed time every second when workout is active
@@ -386,6 +396,7 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
       sessionDate: getTodayDate(),
       exerciseProgress: Array.from(exerciseProgress.entries()),
       startedAt: now.toISOString(),
+      temporarySwaps: [],
     });
     
     toast.success('Workout started!');
@@ -421,10 +432,48 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
     setLastSetTime(null);
     setExerciseProgress(new Map());
     setStartedAt(null);
+    setTemporarySwaps([]);
     setIsLoading(false);
 
     // Update URL for deep linking
     router.replace(`/workout?id=${workoutId}`, { scroll: false });
+  }
+
+  async function handleSwapExercise(alternative: ExerciseAlternative, permanent: boolean) {
+    if (permanent) {
+      const result = await swapExercisePermanentlyAction(currentExercise.id, alternative);
+      if (result.success && result.exercise) {
+        // Update local workout state with new exercise name/weight
+        setWorkout((prev) => ({
+          ...prev,
+          exercises: prev.exercises.map((ex) =>
+            ex.id === currentExercise.id
+              ? { ...ex, name: alternative.name, defaultWeight: alternative.defaultWeight }
+              : ex
+          ),
+        }));
+        toast.success(`Swapped to ${alternative.name} permanently`);
+      } else {
+        toast.error(result.error || 'Failed to swap exercise');
+      }
+    } else {
+      // Temporary swap - store in session state
+      setTemporarySwaps((prev) => {
+        // Remove any existing swap for this exercise
+        const filtered = prev.filter((s) => s.originalExerciseId !== currentExercise.id);
+        return [
+          ...filtered,
+          {
+            originalExerciseId: currentExercise.id,
+            swappedName: alternative.name,
+            swappedDefaultWeight: alternative.defaultWeight,
+          },
+        ];
+      });
+      // Update default weight for current exercise
+      setDefaultValues((prev) => ({ ...prev, weight: alternative.defaultWeight }));
+      toast.success(`Swapped to ${alternative.name} for today`);
+    }
   }
 
   function handleSelectExercise(index: number) {
@@ -549,6 +598,8 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
         exercise={currentExercise}
         currentSet={currentSet}
         totalSets={maxSets}
+        displayName={currentExerciseDisplayName}
+        onSwap={handleSwapExercise}
       />
 
       {/* Set logger */}

@@ -52,6 +52,12 @@ export interface ExerciseProgress {
   lastSetNumber: number;
 }
 
+export interface TemporarySwap {
+  originalExerciseId: number;
+  swappedName: string;
+  swappedDefaultWeight: number;
+}
+
 export interface WorkoutSession {
   workoutId: number;
   exerciseIndex: number;
@@ -63,4 +69,5 @@ export interface WorkoutSession {
   sessionDate: string;
   exerciseProgress: [number, ExerciseProgress][];
   startedAt: string | null; // ISO timestamp when workout was started
+  temporarySwaps?: TemporarySwap[]; // Swaps that only apply to this session
 }

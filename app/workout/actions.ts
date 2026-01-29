@@ -1,9 +1,10 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { logSet as dbLogSet, getLastLogForExercise, getWorkoutWithExercises, getExerciseAverageRepsPastWeek } from '@/lib/db/queries';
+import { logSet as dbLogSet, getLastLogForExercise, getWorkoutWithExercises, getExerciseAverageRepsPastWeek, updateExercise } from '@/lib/db/queries';
 import { sql } from '@/lib/db/client';
 import type { SetLogInput, Exercise } from '@/lib/types';
+import type { ExerciseAlternative } from '@/lib/config/exercise-swaps';
 
 export async function logSetAction(input: SetLogInput) {
   try {
@@ -185,5 +186,22 @@ export async function getTodayLogsAction(workoutId: number) {
   } catch (error) {
     console.error('Error fetching today logs:', error);
     return { success: false, error: 'Failed to fetch today logs' };
+  }
+}
+
+export async function swapExercisePermanentlyAction(
+  exerciseId: number,
+  alternative: ExerciseAlternative
+) {
+  try {
+    const updated = await updateExercise(exerciseId, {
+      name: alternative.name,
+      defaultWeight: alternative.defaultWeight,
+    });
+    revalidatePath('/workout');
+    return { success: true, exercise: updated };
+  } catch (error) {
+    console.error('Error swapping exercise:', error);
+    return { success: false, error: 'Failed to swap exercise' };
   }
 }
