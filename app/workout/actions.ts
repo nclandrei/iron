@@ -3,11 +3,13 @@
 import { revalidatePath } from 'next/cache';
 import { logSet as dbLogSet, getLastLogForExercise, getLastGripForExercise, getWorkoutWithExercises, getExerciseAverageRepsPastWeek, updateExercise } from '@/lib/db/queries';
 import { sql } from '@/lib/db/client';
+import { requireAuth } from '@/lib/auth/session';
 import type { SetLogInput, Exercise } from '@/lib/types';
 import type { ExerciseAlternative } from '@/lib/config/exercise-swaps';
 
 export async function logSetAction(input: SetLogInput) {
   try {
+    await requireAuth();
     const log = await dbLogSet(input);
     return { success: true, log };
   } catch (error) {
@@ -226,6 +228,7 @@ export async function swapExercisePermanentlyAction(
   alternative: ExerciseAlternative
 ) {
   try {
+    await requireAuth();
     const updated = await updateExercise(exerciseId, {
       name: alternative.name,
       defaultWeight: alternative.defaultWeight,

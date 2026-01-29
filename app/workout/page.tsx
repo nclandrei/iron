@@ -1,5 +1,6 @@
 import { getWorkoutByDay, getWorkouts, getWorkoutWithExercises } from '@/lib/db/queries';
 import { getWorkoutDayFromCurrent } from '@/lib/utils/workout';
+import { getCurrentUser } from '@/lib/auth/session';
 import { WorkoutTracker } from './workout-tracker';
 
 interface WorkoutPageProps {
@@ -7,7 +8,10 @@ interface WorkoutPageProps {
 }
 
 export default async function WorkoutPage({ searchParams }: WorkoutPageProps) {
-  const allWorkouts = await getWorkouts();
+  const user = await getCurrentUser();
+  const userId = user?.id;
+
+  const allWorkouts = await getWorkouts(userId);
   const params = await searchParams;
 
   let workout;
@@ -18,7 +22,7 @@ export default async function WorkoutPage({ searchParams }: WorkoutPageProps) {
   } else {
     // Auto-detect by day
     const currentDay = getWorkoutDayFromCurrent();
-    workout = await getWorkoutByDay(currentDay);
+    workout = await getWorkoutByDay(currentDay, userId);
   }
 
   if (!workout) {
