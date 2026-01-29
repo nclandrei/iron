@@ -3,11 +3,15 @@ import { getWorkouts, getWorkoutByDay } from '@/lib/db/queries';
 import { WorkoutHistoryTable } from '@/components/history/workout-history-table';
 import { ExportButton } from '@/components/history/export-button';
 import { getWorkoutDayFromCurrent } from '@/lib/utils/workout';
+import { getCurrentUser } from '@/lib/auth/session';
 
 export default async function HistoryPage() {
-  const workouts = await getWorkouts();
+  const user = await getCurrentUser();
+  const userId = user?.id;
+
+  const workouts = await getWorkouts(userId);
   const currentDay = getWorkoutDayFromCurrent();
-  const currentWorkout = await getWorkoutByDay(currentDay);
+  const currentWorkout = await getWorkoutByDay(currentDay, userId);
 
   // Default to current day's workout, fallback to first workout
   const defaultWorkoutId = currentWorkout?.id.toString() ?? workouts[0]?.id.toString();
