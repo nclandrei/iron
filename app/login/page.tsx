@@ -1,14 +1,16 @@
 'use client';
 
 import { useState } from 'react';
-import { loginAction } from './actions';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { signIn } from '@/lib/auth-client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { toast } from 'sonner';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function LoginPage() {
+    const router = useRouter();
     const [error, setError] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
@@ -18,18 +20,21 @@ export default function LoginPage() {
         setIsLoading(true);
 
         const formData = new FormData(event.currentTarget);
+        const email = formData.get('email') as string;
+        const password = formData.get('password') as string;
 
         try {
-            const result = await loginAction(formData);
-            if (result?.error) {
-                setError(result.error);
+            const result = await signIn.email({
+                email,
+                password,
+            });
+
+            if (result.error) {
+                setError(result.error.message || 'Invalid email or password');
+            } else {
+                router.push('/workout');
             }
-            // If no error, redirect() was called in the action and will navigate
         } catch (err) {
-            // redirect() throws NEXT_REDIRECT error - don't show it as an error
-            if (err && typeof err === 'object' && 'digest' in err && String(err.digest).startsWith('NEXT_REDIRECT')) {
-                return; // This is a successful redirect, not an error
-            }
             setError('An error occurred. Please try again.');
         } finally {
             setIsLoading(false);
@@ -65,18 +70,30 @@ export default function LoginPage() {
                     <CardTitle className="text-4xl font-black tracking-tight">
                         IRON
                     </CardTitle>
-
                 </CardHeader>
                 <CardContent>
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="space-y-2">
+                            <Label htmlFor="email">Email</Label>
+                            <Input
+                                id="email"
+                                name="email"
+                                type="email"
+                                autoComplete="email"
+                                required
+                                autoFocus
+                                className="text-base h-11"
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="password">Password</Label>
                             <Input
                                 id="password"
                                 name="password"
                                 type="password"
                                 autoComplete="current-password"
                                 required
-                                autoFocus
                                 className="text-base h-11"
                             />
                         </div>
@@ -92,8 +109,15 @@ export default function LoginPage() {
                             className="w-full h-11 text-base font-semibold"
                             loading={isLoading}
                         >
-                            Login
+                            Sign In
                         </Button>
+
+                        <p className="text-center text-sm text-muted-foreground">
+                            Don&apos;t have an account?{' '}
+                            <Link href="/signup" className="font-medium text-foreground hover:underline">
+                                Sign up
+                            </Link>
+                        </p>
                     </form>
                 </CardContent>
             </Card>
