@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { updateExercise, deleteExercise, addExercise } from '@/lib/db/queries';
+import { requireAuth } from '@/lib/auth/session';
 import type { Exercise } from '@/lib/types';
 
 export async function updateExerciseAction(
@@ -9,6 +10,7 @@ export async function updateExerciseAction(
   data: Partial<Pick<Exercise, 'name' | 'targetSets' | 'targetRepsMin' | 'targetRepsMax' | 'defaultWeight'>>
 ) {
   try {
+    await requireAuth();
     const exercise = await updateExercise(exerciseId, data);
     revalidatePath('/manage');
     return { success: true, exercise };
@@ -20,6 +22,7 @@ export async function updateExerciseAction(
 
 export async function deleteExerciseAction(exerciseId: number) {
   try {
+    await requireAuth();
     await deleteExercise(exerciseId);
     revalidatePath('/manage');
     return { success: true };
@@ -34,6 +37,7 @@ export async function addExerciseAction(
   exercise: Omit<Exercise, 'id' | 'workoutId'>
 ) {
   try {
+    await requireAuth();
     const newExercise = await addExercise(workoutId, exercise);
     revalidatePath('/manage');
     return { success: true, exercise: newExercise };
