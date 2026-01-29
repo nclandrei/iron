@@ -1,3 +1,55 @@
+import Link from 'next/link';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+
+// Sign up temporarily disabled - uncomment the original code below to re-enable
+export default function SignUpPage() {
+    return (
+        <div className="flex min-h-screen items-center justify-center p-4 bg-gradient-to-br from-background to-muted/20">
+            <Card className="w-full max-w-md border-2">
+                <CardHeader className="text-center space-y-3 pb-8">
+                    {/* Dumbbell Icon */}
+                    <div className="flex justify-center">
+                        <svg
+                            width="48"
+                            height="48"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="text-foreground"
+                        >
+                            <path d="M6.5 6.5h11M6.5 17.5h11" />
+                            <path d="M3 10V14M21 10V14" />
+                            <rect x="5" y="5" width="3" height="14" rx="1" />
+                            <rect x="16" y="5" width="3" height="14" rx="1" />
+                            <line x1="9" y1="12" x2="15" y2="12" strokeWidth="2.5" />
+                        </svg>
+                    </div>
+
+                    {/* App Name */}
+                    <CardTitle className="text-4xl font-black tracking-tight">
+                        IRON
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="text-center space-y-4">
+                    <p className="text-muted-foreground">
+                        Sign up is currently disabled.
+                    </p>
+                    <Link href="/login">
+                        <Button variant="outline" className="w-full">
+                            Back to Login
+                        </Button>
+                    </Link>
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
+
+/* Original sign up code - uncomment to re-enable:
 'use client';
 
 import { useState } from 'react';
@@ -60,7 +112,6 @@ export default function SignUpPage() {
         <div className="flex min-h-screen items-center justify-center p-4 bg-gradient-to-br from-background to-muted/20">
             <Card className="w-full max-w-md border-2">
                 <CardHeader className="text-center space-y-3 pb-8">
-                    {/* Dumbbell Icon */}
                     <div className="flex justify-center">
                         <svg
                             width="48"
@@ -81,7 +132,6 @@ export default function SignUpPage() {
                         </svg>
                     </div>
 
-                    {/* App Name */}
                     <CardTitle className="text-4xl font-black tracking-tight">
                         IRON
                     </CardTitle>
@@ -163,3 +213,4 @@ export default function SignUpPage() {
         </div>
     );
 }
+*/

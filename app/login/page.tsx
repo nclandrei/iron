@@ -112,12 +112,14 @@ export default function LoginPage() {
                             Sign In
                         </Button>
 
+{/* Sign up temporarily disabled
                         <p className="text-center text-sm text-muted-foreground">
                             Don&apos;t have an account?{' '}
                             <Link href="/signup" className="font-medium text-foreground hover:underline">
                                 Sign up
                             </Link>
                         </p>
+*/}
                     </form>
                 </CardContent>
             </Card>
