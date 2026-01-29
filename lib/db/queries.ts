@@ -94,6 +94,29 @@ export async function getLastLogForExercise(
   return rows[0] as { reps: number; weight: number };
 }
 
+// Get last used grip for an exercise
+export async function getLastGripForExercise(
+  exerciseId: number
+): Promise<string | null> {
+  // Validate exerciseId is a positive number
+  if (!Number.isInteger(exerciseId) || exerciseId <= 0) {
+    throw new Error('exerciseId must be a positive integer');
+  }
+
+  const { rows } = await sql`
+    SELECT grip
+    FROM workout_logs
+    WHERE exercise_id = ${exerciseId}
+      AND grip IS NOT NULL
+    ORDER BY logged_at DESC
+    LIMIT 1;
+  `;
+
+  if (rows.length === 0) return null;
+
+  return rows[0].grip as string;
+}
+
 // Get average reps for an exercise in the past week
 export async function getExerciseAverageRepsPastWeek(
   exerciseId: number
@@ -117,17 +140,18 @@ export async function getExerciseAverageRepsPastWeek(
   return parseFloat(rows[0].averageReps);
 }
 
-// Log a set (with exercise name snapshot)
+// Log a set (with exercise name snapshot and optional grip)
 export async function logSet(input: SetLogInput): Promise<WorkoutLog> {
   const { rows } = await sql`
-    INSERT INTO workout_logs (workout_id, exercise_id, set_number, reps, weight, exercise_name)
+    INSERT INTO workout_logs (workout_id, exercise_id, set_number, reps, weight, exercise_name, grip)
     SELECT
       ${input.workoutId},
       ${input.exerciseId},
       ${input.setNumber},
       ${input.reps},
       ${input.weight},
-      e.name
+      e.name,
+      ${input.grip || null}
     FROM exercises e
     WHERE e.id = ${input.exerciseId}
     RETURNING
@@ -138,7 +162,8 @@ export async function logSet(input: SetLogInput): Promise<WorkoutLog> {
       set_number as "setNumber",
       reps,
       weight,
-      exercise_name as "exerciseName";
+      exercise_name as "exerciseName",
+      grip;
   `;
 
   return rows[0] as WorkoutLog;

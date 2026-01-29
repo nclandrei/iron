@@ -40,7 +40,8 @@ async function seed() {
         logged_at TIMESTAMP DEFAULT NOW(),
         set_number INTEGER NOT NULL,
         reps INTEGER NOT NULL,
-        weight DECIMAL(5,1) NOT NULL
+        weight DECIMAL(5,1) NOT NULL,
+        grip VARCHAR(20)
       );
     `;
 
