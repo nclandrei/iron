@@ -5,6 +5,9 @@ import { Nav } from "@/components/layout/nav";
 import { Toaster } from "@/components/ui/sonner";
 import { isAuthenticated } from "@/lib/auth/session";
 
+// Force dynamic rendering to check auth on every request
+export const dynamic = "force-dynamic";
+
 const geistSans = Geist({
     variable: "--font-geist-sans",
     subsets: ["latin"],
