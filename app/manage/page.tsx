@@ -11,7 +11,7 @@ import { ExerciseEditor } from '@/components/manage/exercise-editor';
 import { ExerciseCombobox } from '@/components/ui/exercise-combobox';
 import { Plus, X } from 'lucide-react';
 import { toast } from 'sonner';
-import { addExerciseAction } from './actions';
+import { addExerciseAction, updateUserPreferencesAction } from './actions';
 
 export default function ManagePage() {
   const [workouts, setWorkouts] = useState<WorkoutWithExercises[]>([]);
@@ -24,6 +24,9 @@ export default function ManagePage() {
     repsMax: '12',
     weight: '20',
   });
+  const [hardWeeks, setHardWeeks] = useState('6');
+  const [deloadWeeks, setDeloadWeeks] = useState('1');
+  const [isSavingPreferences, setIsSavingPreferences] = useState(false);
 
   useEffect(() => {
     async function fetchWorkouts() {
@@ -40,6 +43,28 @@ export default function ManagePage() {
     }
 
     fetchWorkouts();
+  }, []);
+
+  useEffect(() => {
+    async function fetchPreferences() {
+      try {
+        const response = await fetch('/api/user/preferences');
+        if (!response.ok) {
+          return;
+        }
+        const data = await response.json();
+        if (data?.hardWeeks) {
+          setHardWeeks(String(data.hardWeeks));
+        }
+        if (data?.deloadWeeks) {
+          setDeloadWeeks(String(data.deloadWeeks));
+        }
+      } catch (error) {
+        console.error('Error fetching preferences:', error);
+      }
+    }
+
+    fetchPreferences();
   }, []);
 
   async function handleAddExercise(workoutId: number) {
@@ -120,6 +145,39 @@ export default function ManagePage() {
     }));
   }
 
+  async function handleSavePreferences() {
+    const hardWeeksValue = Number(hardWeeks);
+    const deloadWeeksValue = Number(deloadWeeks);
+
+    if (!Number.isInteger(hardWeeksValue) || hardWeeksValue < 6 || hardWeeksValue > 8) {
+      toast.error('Hard weeks must be between 6 and 8');
+      return;
+    }
+
+    if (!Number.isInteger(deloadWeeksValue) || (deloadWeeksValue !== 1 && deloadWeeksValue !== 2)) {
+      toast.error('Deload weeks must be 1 or 2');
+      return;
+    }
+
+    setIsSavingPreferences(true);
+    const result = await updateUserPreferencesAction({
+      hardWeeks: hardWeeksValue,
+      deloadWeeks: deloadWeeksValue,
+    });
+
+    if (result.success) {
+      toast.success('Defaults updated', {
+        description: `Hard weeks: ${hardWeeksValue}, deload weeks: ${deloadWeeksValue}`,
+      });
+    } else {
+      toast.error('Error', {
+        description: result.error,
+      });
+    }
+
+    setIsSavingPreferences(false);
+  }
+
   if (isLoading) {
     return (
       <div className="container mx-auto p-4 max-w-4xl">
@@ -133,6 +191,41 @@ export default function ManagePage() {
   return (
     <div className="container mx-auto p-4 max-w-4xl">
       <h1 className="text-3xl font-bold mb-6">Manage Workouts</h1>
+
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="text-lg">Cycle Defaults</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="hard-weeks">Hard Weeks (6-8)</Label>
+              <Input
+                id="hard-weeks"
+                type="number"
+                min="6"
+                max="8"
+                value={hardWeeks}
+                onChange={(e) => setHardWeeks(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="deload-weeks">Deload Weeks (1-2)</Label>
+              <Input
+                id="deload-weeks"
+                type="number"
+                min="1"
+                max="2"
+                value={deloadWeeks}
+                onChange={(e) => setDeloadWeeks(e.target.value)}
+              />
+            </div>
+          </div>
+          <Button onClick={handleSavePreferences} loading={isSavingPreferences}>
+            Save Defaults
+          </Button>
+        </CardContent>
+      </Card>
 
       <Tabs defaultValue={workouts[0]?.id.toString()} className="w-full">
         <TabsList className="grid w-full grid-cols-4">

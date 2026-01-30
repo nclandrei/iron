@@ -6,6 +6,7 @@ import type {
   WorkoutWithExercises,
   ExerciseWithLastLog,
   SetLogInput,
+  UserPreferences,
 } from '../types';
 
 // Get all workouts for a user
@@ -684,4 +685,79 @@ export async function getWorkoutLogsForDateRange(
     reps: row.reps as number,
     weight: parseFloat(row.weight as string),
   }));
+}
+
+export async function getUserPreferences(userId: string): Promise<UserPreferences | null> {
+  if (typeof userId !== 'string' || userId.length === 0) {
+    throw new Error('userId must be a non-empty string');
+  }
+
+  const { rows } = await sql`
+    SELECT
+      id as "userId",
+      deload_weeks as "deloadWeeks",
+      hard_weeks as "hardWeeks"
+    FROM "user"
+    WHERE id = ${userId}
+    LIMIT 1;
+  `;
+
+  if (rows.length === 0) {
+    return null;
+  }
+
+  return rows[0] as UserPreferences;
+}
+
+export async function updateUserPreferences(
+  userId: string,
+  data: Partial<Pick<UserPreferences, 'deloadWeeks' | 'hardWeeks'>>
+): Promise<UserPreferences> {
+  if (typeof userId !== 'string' || userId.length === 0) {
+    throw new Error('userId must be a non-empty string');
+  }
+
+  const updates: string[] = [];
+  const values: Array<number | string> = [];
+  let paramCount = 1;
+
+  if (data.deloadWeeks !== undefined) {
+    if (!Number.isInteger(data.deloadWeeks) || data.deloadWeeks < 1 || data.deloadWeeks > 2) {
+      throw new Error('deloadWeeks must be 1 or 2');
+    }
+    updates.push(`deload_weeks = $${paramCount++}`);
+    values.push(data.deloadWeeks);
+  }
+
+  if (data.hardWeeks !== undefined) {
+    if (!Number.isInteger(data.hardWeeks) || data.hardWeeks < 6 || data.hardWeeks > 8) {
+      throw new Error('hardWeeks must be between 6 and 8');
+    }
+    updates.push(`hard_weeks = $${paramCount++}`);
+    values.push(data.hardWeeks);
+  }
+
+  if (updates.length === 0) {
+    throw new Error('No preferences provided to update');
+  }
+
+  values.push(userId);
+
+  const query = `
+    UPDATE "user"
+    SET ${updates.join(', ')}, updated_at = NOW()
+    WHERE id = $${paramCount}
+    RETURNING
+      id as "userId",
+      deload_weeks as "deloadWeeks",
+      hard_weeks as "hardWeeks";
+  `;
+
+  const result = await sql.query(query, values);
+
+  if (result.rows.length === 0) {
+    throw new Error(`User with id ${userId} not found`);
+  }
+
+  return result.rows[0] as UserPreferences;
 }

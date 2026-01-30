@@ -21,6 +21,18 @@ async function migrate() {
   `;
   
   console.log(`001: Backfilled ${result.rowCount ?? 0} rows`);
+
+  // Migration 002: Add deload defaults to user
+  console.log('002: Adding deload defaults to user table...');
+
+  await sql`
+    ALTER TABLE "user" ADD COLUMN IF NOT EXISTS deload_weeks INTEGER NOT NULL DEFAULT 1;
+  `;
+  await sql`
+    ALTER TABLE "user" ADD COLUMN IF NOT EXISTS hard_weeks INTEGER NOT NULL DEFAULT 6;
+  `;
+
+  console.log('002: Deload defaults added.');
   console.log('Migrations complete!');
 }
 

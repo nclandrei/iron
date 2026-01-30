@@ -75,3 +75,9 @@ export interface WorkoutSession {
   temporarySwaps?: TemporarySwap[]; // Swaps that only apply to this session
   currentGrips?: Record<number, string>; // exerciseId -> current grip for this session
 }
+
+export interface UserPreferences {
+  userId: string;
+  deloadWeeks: number;
+  hardWeeks: number;
+}
