@@ -1,8 +1,38 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { updateWorkoutLog, deleteWorkoutLog } from '@/lib/db/queries';
+import { updateWorkoutLog, deleteWorkoutLog, getWorkoutHistory } from '@/lib/db/queries';
 import { requireAuth } from '@/lib/auth/session';
+
+export type SessionHistoryItem = {
+  date: string;
+  durationMinutes: number | null;
+  firstLoggedAt: string | null;
+  exercises: Array<{
+    exerciseId: number;
+    exerciseName: string;
+    sets: Array<{ id: number; setNumber: number; reps: number; weight: number }>;
+  }>;
+};
+
+export async function fetchMoreSessionHistory(
+  workoutId: number,
+  offset: number,
+  limit: number = 8
+): Promise<{ sessions: SessionHistoryItem[]; hasMore: boolean }> {
+  try {
+    await requireAuth();
+    const sessions = await getWorkoutHistory(workoutId, limit + 1, offset);
+    const hasMore = sessions.length > limit;
+    return {
+      sessions: hasMore ? sessions.slice(0, limit) : sessions,
+      hasMore,
+    };
+  } catch (error) {
+    console.error('Error fetching session history:', error);
+    return { sessions: [], hasMore: false };
+  }
+}
 
 export async function updateSetAction(logId: number, reps: number, weight: number) {
   try {

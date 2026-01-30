@@ -2,27 +2,18 @@ import { getWorkoutHistory, getWorkoutWithExercises, getExerciseHistory } from '
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ExerciseChart } from './exercise-chart';
-import { EditableWorkoutCard } from './editable-workout-card';
+import { SessionHistoryList } from './session-history-list';
 
-function formatTimeAgo(date: Date): string {
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  const diffHours = Math.floor(diffMins / 60);
-  const diffDays = Math.floor(diffHours / 24);
-
-  if (diffDays > 0) return `${diffDays}d ago`;
-  if (diffHours > 0) return `${diffHours}h ago`;
-  if (diffMins > 0) return `${diffMins}m ago`;
-  return 'just now';
-}
+const PAGE_SIZE = 8;
 
 interface WorkoutHistoryTableProps {
   workoutId: number;
 }
 
 export async function WorkoutHistoryTable({ workoutId }: WorkoutHistoryTableProps) {
-  const history = await getWorkoutHistory(workoutId, 8);
+  const history = await getWorkoutHistory(workoutId, PAGE_SIZE + 1);
+  const hasMore = history.length > PAGE_SIZE;
+  const initialSessions = hasMore ? history.slice(0, PAGE_SIZE) : history;
   const workout = await getWorkoutWithExercises(workoutId);
 
   if (!workout) {
@@ -56,42 +47,12 @@ export async function WorkoutHistoryTable({ workoutId }: WorkoutHistoryTableProp
         <TabsTrigger value="charts">Exercise Charts</TabsTrigger>
       </TabsList>
 
-      <TabsContent value="table" className="space-y-4">
-        {history.map((session) => {
-          // Parse date string as local time (YYYY-MM-DD)
-          const [year, month, day] = session.date.split('-').map(Number);
-          const date = new Date(year, month - 1, day);
-          const dateStr = date.toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-          });
-          // Use actual timestamp for relative time if available, otherwise fall back to date
-          const timeForRelative = session.firstLoggedAt
-            ? new Date(session.firstLoggedAt)
-            : date;
-          const relativeTime = formatTimeAgo(timeForRelative);
-
-          const formatDuration = (minutes: number | null) => {
-            if (minutes === null) return null;
-            if (minutes < 60) return `${minutes}m`;
-            const hours = Math.floor(minutes / 60);
-            const mins = minutes % 60;
-            return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
-          };
-
-          const durationStr = formatDuration(session.durationMinutes);
-
-          return (
-            <EditableWorkoutCard
-              key={session.date}
-              exercises={session.exercises}
-              dateStr={dateStr}
-              relativeTime={relativeTime}
-              durationStr={durationStr}
-            />
-          );
-        })}
+      <TabsContent value="table">
+        <SessionHistoryList
+          workoutId={workoutId}
+          initialSessions={initialSessions}
+          initialHasMore={hasMore}
+        />
       </TabsContent>
 
       <TabsContent value="charts" className="space-y-6">

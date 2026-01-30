@@ -190,7 +190,8 @@ export async function logSet(input: SetLogInput): Promise<WorkoutLog> {
 // Get workout history for a specific workout (last N sessions)
 export async function getWorkoutHistory(
   workoutId: number,
-  limit: number = 8
+  limit: number = 8,
+  offset: number = 0
 ): Promise<
   Array<{
     date: string;
@@ -211,6 +212,11 @@ export async function getWorkoutHistory(
   // Validate limit is a positive number with reasonable maximum
   if (!Number.isInteger(limit) || limit <= 0 || limit > 100) {
     throw new Error('limit must be a positive integer between 1 and 100');
+  }
+
+  // Validate offset is a non-negative integer
+  if (!Number.isInteger(offset) || offset < 0) {
+    throw new Error('offset must be a non-negative integer');
   }
 
   const { rows } = await sql`
@@ -277,9 +283,9 @@ export async function getWorkoutHistory(
     });
   }
 
-  // Convert to array, calculate duration, and take last N sessions
+  // Convert to array, calculate duration, and take last N sessions with offset
   const result = Array.from(grouped.entries())
-    .slice(0, limit)
+    .slice(offset, offset + limit)
     .map(([date, dateData]) => {
       const timestamps = dateData.timestamps;
       let durationMinutes: number | null = null;
