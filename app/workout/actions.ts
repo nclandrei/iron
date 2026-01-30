@@ -300,7 +300,8 @@ export async function getCycleStatusAction() {
     return { success: true, preferences, cycleInfo };
   } catch (error) {
     console.error('Error fetching cycle status:', error);
-    return { success: false, error: 'Failed to fetch cycle status' };
+    const message = error instanceof Error ? error.message : String(error);
+    return { success: false, error: `Failed to fetch cycle status: ${message}` };
   }
 }
 
@@ -320,7 +321,8 @@ export async function startNewCycleAction(data: { hardWeeks: number; deloadWeeks
     return { success: true, preferences };
   } catch (error) {
     console.error('Error starting new cycle:', error);
-    return { success: false, error: 'Failed to start new cycle' };
+    const message = error instanceof Error ? error.message : String(error);
+    return { success: false, error: `Failed to start new cycle: ${message}` };
   }
 }
 
