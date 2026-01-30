@@ -33,6 +33,21 @@ async function migrate() {
   `;
 
   console.log('002: Deload defaults added.');
+
+  // Migration 003: Add cycle override tracking to user
+  console.log('003: Adding cycle override fields to user table...');
+
+  await sql`
+    ALTER TABLE "user" ADD COLUMN IF NOT EXISTS cycle_start_date DATE;
+  `;
+  await sql`
+    ALTER TABLE "user" ADD COLUMN IF NOT EXISTS cycle_hard_weeks INTEGER;
+  `;
+  await sql`
+    ALTER TABLE "user" ADD COLUMN IF NOT EXISTS cycle_deload_weeks INTEGER;
+  `;
+
+  console.log('003: Cycle override fields added.');
   console.log('Migrations complete!');
 }
 

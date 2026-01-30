@@ -80,4 +80,7 @@ export interface UserPreferences {
   userId: string;
   deloadWeeks: number;
   hardWeeks: number;
+  cycleStartDate?: string | null;
+  cycleHardWeeks?: number | null;
+  cycleDeloadWeeks?: number | null;
 }

@@ -696,7 +696,10 @@ export async function getUserPreferences(userId: string): Promise<UserPreference
     SELECT
       id as "userId",
       deload_weeks as "deloadWeeks",
-      hard_weeks as "hardWeeks"
+      hard_weeks as "hardWeeks",
+      cycle_start_date as "cycleStartDate",
+      cycle_hard_weeks as "cycleHardWeeks",
+      cycle_deload_weeks as "cycleDeloadWeeks"
     FROM "user"
     WHERE id = ${userId}
     LIMIT 1;
@@ -750,7 +753,10 @@ export async function updateUserPreferences(
     RETURNING
       id as "userId",
       deload_weeks as "deloadWeeks",
-      hard_weeks as "hardWeeks";
+      hard_weeks as "hardWeeks",
+      cycle_start_date as "cycleStartDate",
+      cycle_hard_weeks as "cycleHardWeeks",
+      cycle_deload_weeks as "cycleDeloadWeeks";
   `;
 
   const result = await sql.query(query, values);
@@ -760,4 +766,74 @@ export async function updateUserPreferences(
   }
 
   return result.rows[0] as UserPreferences;
+}
+
+export async function upsertUserCycleOverrides(
+  userId: string,
+  data: { cycleStartDate: string; cycleHardWeeks: number; cycleDeloadWeeks: number }
+): Promise<UserPreferences> {
+  if (typeof userId !== 'string' || userId.length === 0) {
+    throw new Error('userId must be a non-empty string');
+  }
+  if (!data.cycleStartDate) {
+    throw new Error('cycleStartDate is required');
+  }
+  if (!Number.isInteger(data.cycleHardWeeks) || data.cycleHardWeeks < 6 || data.cycleHardWeeks > 8) {
+    throw new Error('cycleHardWeeks must be between 6 and 8');
+  }
+  if (!Number.isInteger(data.cycleDeloadWeeks) || (data.cycleDeloadWeeks !== 1 && data.cycleDeloadWeeks !== 2)) {
+    throw new Error('cycleDeloadWeeks must be 1 or 2');
+  }
+
+  const { rows } = await sql`
+    UPDATE "user"
+    SET
+      cycle_start_date = ${data.cycleStartDate},
+      cycle_hard_weeks = ${data.cycleHardWeeks},
+      cycle_deload_weeks = ${data.cycleDeloadWeeks},
+      updated_at = NOW()
+    WHERE id = ${userId}
+    RETURNING
+      id as "userId",
+      deload_weeks as "deloadWeeks",
+      hard_weeks as "hardWeeks",
+      cycle_start_date as "cycleStartDate",
+      cycle_hard_weeks as "cycleHardWeeks",
+      cycle_deload_weeks as "cycleDeloadWeeks";
+  `;
+
+  if (rows.length === 0) {
+    throw new Error(`User with id ${userId} not found`);
+  }
+
+  return rows[0] as UserPreferences;
+}
+
+export async function clearUserCycleOverrides(userId: string): Promise<UserPreferences> {
+  if (typeof userId !== 'string' || userId.length === 0) {
+    throw new Error('userId must be a non-empty string');
+  }
+
+  const { rows } = await sql`
+    UPDATE "user"
+    SET
+      cycle_start_date = NULL,
+      cycle_hard_weeks = NULL,
+      cycle_deload_weeks = NULL,
+      updated_at = NOW()
+    WHERE id = ${userId}
+    RETURNING
+      id as "userId",
+      deload_weeks as "deloadWeeks",
+      hard_weeks as "hardWeeks",
+      cycle_start_date as "cycleStartDate",
+      cycle_hard_weeks as "cycleHardWeeks",
+      cycle_deload_weeks as "cycleDeloadWeeks";
+  `;
+
+  if (rows.length === 0) {
+    throw new Error(`User with id ${userId} not found`);
+  }
+
+  return rows[0] as UserPreferences;
 }

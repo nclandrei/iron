@@ -1,17 +1,31 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import type { WorkoutWithExercises, Workout, ExerciseProgress, Exercise, WorkoutLog, TemporarySwap } from '@/lib/types';
 import type { ExerciseAlternative } from '@/lib/config/exercise-swaps';
-import { getGripConfig, getDefaultGrip, hasGripOptions, type GripType } from '@/lib/config/exercise-grips';
-import { logSetAction, getLastLogAction, getLastGripAction, getWorkoutAction, getExerciseSuggestionAction, getTodayLogsAction, getLastSessionSetsAction, swapExercisePermanentlyAction } from './actions';
+import { getDefaultGrip, hasGripOptions, type GripType } from '@/lib/config/exercise-grips';
+import {
+  logSetAction,
+  getLastLogAction,
+  getLastGripAction,
+  getWorkoutAction,
+  getExerciseSuggestionAction,
+  getTodayLogsAction,
+  getLastSessionSetsAction,
+  swapExercisePermanentlyAction,
+  getCycleStatusAction,
+  startNewCycleAction,
+} from './actions';
 import { ExerciseDisplay } from '@/components/workout/exercise-display';
 import { SetLogger } from '@/components/workout/set-logger';
 import { ExerciseList } from '@/components/workout/exercise-list';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import {
   saveWorkoutSession,
@@ -48,11 +62,43 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
   const [elapsedTime, setElapsedTime] = useState<string>('0:00');
   const [temporarySwaps, setTemporarySwaps] = useState<TemporarySwap[]>([]);
   const [currentGrips, setCurrentGrips] = useState<Record<number, GripType>>({});
+  const [cycleInfo, setCycleInfo] = useState<
+    | {
+        weekIndex: number;
+        totalWeeks: number;
+        hardWeeks: number;
+        deloadWeeks: number;
+        positionInCycle: number;
+        isDeloadWeek: boolean;
+        cycleStartDate: string;
+      }
+    | null
+  >(null);
+  const [isCycleLoading, setIsCycleLoading] = useState(true);
+  const [isCycleDialogOpen, setIsCycleDialogOpen] = useState(false);
+  const [cycleHardWeeksInput, setCycleHardWeeksInput] = useState('6');
+  const [cycleDeloadWeeksInput, setCycleDeloadWeeksInput] = useState('1');
+  const [isCycleSaving, setIsCycleSaving] = useState(false);
 
   const isWorkoutActive = startedAt !== null;
+  const isDeloadWeek = cycleInfo?.isDeloadWeek ?? false;
+  const needsCycleSetup =
+    !cycleInfo?.cycleStartDate ||
+    (cycleInfo && cycleInfo.positionInCycle === 1 && cycleInfo.weekIndex > 1);
 
-  const currentExercise = workout.exercises[exerciseIndex];
-  const isLastExercise = exerciseIndex === workout.exercises.length - 1;
+  const effectiveExercises = useMemo(() => {
+    if (!isDeloadWeek) {
+      return workout.exercises;
+    }
+
+    return workout.exercises.map((exercise) => ({
+      ...exercise,
+      targetSets: Math.max(1, Math.round(exercise.targetSets * 0.5)),
+    }));
+  }, [workout.exercises, isDeloadWeek]);
+
+  const currentExercise = effectiveExercises[exerciseIndex];
+  const isLastExercise = exerciseIndex === effectiveExercises.length - 1;
   const maxSets = currentExercise.targetSets + (extraSetUsed ? 0 : 1); // Allow 1 extra
   const completedTargetSets = currentSet > currentExercise.targetSets;
 
@@ -89,6 +135,46 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialWorkout.id]);
 
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function loadCycleStatus() {
+      setIsCycleLoading(true);
+      const result = await getCycleStatusAction();
+
+      if (isCancelled) {
+        return;
+      }
+
+      if (!result.success || !result.preferences) {
+        setIsCycleLoading(false);
+        return;
+      }
+
+      setCycleInfo(result.cycleInfo ?? null);
+
+      const shouldPromptCycle =
+        !result.preferences.cycleStartDate ||
+        (result.cycleInfo && result.cycleInfo.positionInCycle === 1 && result.cycleInfo.weekIndex > 1);
+
+      if (shouldPromptCycle) {
+        setCycleHardWeeksInput(String(result.preferences.hardWeeks));
+        setCycleDeloadWeeksInput(String(result.preferences.deloadWeeks));
+        setIsCycleDialogOpen(true);
+      } else {
+        setIsCycleDialogOpen(false);
+      }
+
+      setIsCycleLoading(false);
+    }
+
+    loadCycleStatus();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
   // Helper function to find current exercise index based on progress
   function findCurrentExerciseIndex(
     exercises: Exercise[],
@@ -115,7 +201,7 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
 
       // Capture workout ID at start to prevent race conditions
       const currentWorkoutId = workout.id;
-      const currentExercises = workout.exercises;
+      const currentExercises = effectiveExercises;
 
       // Try to load from localStorage
       const savedSession = loadWorkoutSession();
@@ -189,8 +275,7 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
     return () => {
       isCancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workout.id]); // Only run when workout changes
+  }, [workout.id, effectiveExercises]); // Only run when workout changes
 
   // Load last logged values for current exercise (only on first set)
   useEffect(() => {
@@ -266,8 +351,11 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
             weight: result.lastLog.weight,
           });
         } else {
+          const fallbackWeight = isDeloadWeek
+            ? Math.round(currentExercise.defaultWeight * 0.75 * 100) / 100
+            : currentExercise.defaultWeight;
           setDefaultValues({
-            weight: currentExercise.defaultWeight,
+            weight: fallbackWeight,
           });
         }
       }
@@ -278,7 +366,7 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
       loadLastLog();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentExercise.id, currentExercise.defaultWeight, currentSet]);
+  }, [currentExercise.id, currentExercise.defaultWeight, currentSet, isDeloadWeek]);
 
   // Auto-save session to localStorage
   useEffect(() => {
@@ -352,8 +440,6 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
     const intervalId = setInterval(checkInactivity, 30000); // Check every 30 seconds
 
     return () => clearInterval(intervalId);
-    // handleEndWorkout is stable (only calls clearWorkoutSession and setIsComplete)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isWorkoutActive, lastSetTime]);
 
   async function handleLogSet(reps: number, weight: number) {
@@ -429,6 +515,12 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
   }
 
   function handleStartWorkout() {
+    if (needsCycleSetup) {
+      setIsCycleDialogOpen(true);
+      toast.error('Set your cycle first');
+      return;
+    }
+
     const now = new Date();
     setStartedAt(now);
     // Reset set times for fresh session (prevents old DB-restored times from being used)
@@ -454,6 +546,40 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
     });
     
     toast.success('Workout started!');
+  }
+
+  async function handleStartCycle() {
+    const hardWeeksValue = Number(cycleHardWeeksInput);
+    const deloadWeeksValue = Number(cycleDeloadWeeksInput);
+
+    if (!Number.isInteger(hardWeeksValue) || hardWeeksValue < 6 || hardWeeksValue > 8) {
+      toast.error('Hard weeks must be between 6 and 8');
+      return;
+    }
+
+    if (!Number.isInteger(deloadWeeksValue) || (deloadWeeksValue !== 1 && deloadWeeksValue !== 2)) {
+      toast.error('Deload weeks must be 1 or 2');
+      return;
+    }
+
+    setIsCycleSaving(true);
+    const result = await startNewCycleAction({
+      hardWeeks: hardWeeksValue,
+      deloadWeeks: deloadWeeksValue,
+    });
+
+    if (result.success && result.preferences) {
+      const cycleStatus = await getCycleStatusAction();
+      if (cycleStatus.success) {
+        setCycleInfo(cycleStatus.cycleInfo ?? null);
+      }
+      setIsCycleDialogOpen(false);
+      toast.success('New cycle started');
+    } else {
+      toast.error(result.error || 'Failed to start cycle');
+    }
+
+    setIsCycleSaving(false);
   }
 
   function handleEndWorkout() {
@@ -533,8 +659,11 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
       }
     } else {
       setSuggestion(undefined);
+      const fallbackWeight = isDeloadWeek
+        ? Math.round(currentExercise.defaultWeight * 0.75 * 100) / 100
+        : currentExercise.defaultWeight;
       setDefaultValues({
-        weight: currentExercise.defaultWeight,
+        weight: fallbackWeight,
       });
     }
   }
@@ -577,7 +706,7 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
   }
 
   function handleSelectExercise(index: number) {
-    const targetExercise = workout.exercises[index];
+    const targetExercise = effectiveExercises[index];
     const progress = exerciseProgress.get(targetExercise.id);
 
     if (!progress) {
@@ -617,7 +746,7 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
           <CardHeader>
             <CardTitle className="text-3xl text-center">Workout Complete!</CardTitle>
             <CardDescription className="text-center text-lg">
-              {workout.exercises.length} exercises, {totalSetsLogged} total sets
+            {effectiveExercises.length} exercises, {totalSetsLogged} total sets
               {workoutDuration !== null && ` • ${formatDuration(workoutDuration)}`}
             </CardDescription>
           </CardHeader>
@@ -646,25 +775,86 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
   }
 
   return (
-    <div className="container mx-auto p-4 max-w-2xl space-y-6">
-      {/* Workout selector */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold">{workout.name}</h1>
+      <div className="container mx-auto p-4 max-w-2xl space-y-6">
+        <Dialog open={isCycleDialogOpen} onOpenChange={() => undefined}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Start a new cycle</DialogTitle>
+              <DialogDescription>
+                Choose your cycle settings for this training block.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="cycle-hard-weeks">Hard Weeks (6-8)</Label>
+                <Input
+                  id="cycle-hard-weeks"
+                  type="number"
+                  min="6"
+                  max="8"
+                  value={cycleHardWeeksInput}
+                  onChange={(e) => setCycleHardWeeksInput(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="cycle-deload-weeks">Deload Weeks (1-2)</Label>
+                <Input
+                  id="cycle-deload-weeks"
+                  type="number"
+                  min="1"
+                  max="2"
+                  value={cycleDeloadWeeksInput}
+                  onChange={(e) => setCycleDeloadWeeksInput(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button onClick={handleStartCycle} loading={isCycleSaving}>
+                Start Cycle
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {cycleInfo && (
+          <Card className={isDeloadWeek ? 'border-amber-500 bg-amber-500/10' : undefined}>
+            <CardHeader>
+              <CardTitle className="text-lg">
+                {isDeloadWeek ? 'Deload Week' : 'Training Week'}
+              </CardTitle>
+              <CardDescription>
+                Week {cycleInfo.positionInCycle} of {cycleInfo.totalWeeks} •
+                {cycleInfo.hardWeeks} hard / {cycleInfo.deloadWeeks} deload
+              </CardDescription>
+            </CardHeader>
+            {isDeloadWeek && (
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Volume is reduced by ~50% and weights are scaled to 75%.
+                </p>
+              </CardContent>
+            )}
+          </Card>
+        )}
+
+        {/* Workout selector */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold">{workout.name}</h1>
           {isWorkoutActive && (
             <span className="text-lg font-mono text-muted-foreground">{elapsedTime}</span>
           )}
         </div>
 
         <div className="flex items-center gap-2">
-          {isWorkoutActive && (
-            <ExerciseList
-              exercises={workout.exercises}
-              currentExerciseIndex={exerciseIndex}
-              exerciseProgress={exerciseProgress}
-              onSelectExercise={handleSelectExercise}
-            />
-          )}
+            {isWorkoutActive && (
+              <ExerciseList
+                exercises={effectiveExercises}
+                currentExerciseIndex={exerciseIndex}
+                exerciseProgress={exerciseProgress}
+                onSelectExercise={handleSelectExercise}
+              />
+            )}
 
           <Select value={workout.id.toString()} onValueChange={handleChangeWorkout} disabled={isWorkoutActive}>
             <SelectTrigger className="w-[180px]">
@@ -683,14 +873,19 @@ export function WorkoutTracker({ initialWorkout, allWorkouts }: WorkoutTrackerPr
 
       {/* Start/End Workout buttons */}
       {!isWorkoutActive ? (
-        <Button size="lg" className="w-full h-16 text-xl" onClick={handleStartWorkout}>
+        <Button
+          size="lg"
+          className="w-full h-16 text-xl"
+          onClick={handleStartWorkout}
+          disabled={isCycleLoading || needsCycleSetup}
+        >
           Start Workout
         </Button>
       ) : (
         <>
           {/* Progress */}
           <div className="text-sm text-muted-foreground">
-            Exercise {exerciseIndex + 1} of {workout.exercises.length}
+            Exercise {exerciseIndex + 1} of {effectiveExercises.length}
           </div>
 
       {/* Exercise info */}

@@ -7,6 +7,9 @@ CREATE TABLE IF NOT EXISTS "user" (
   image TEXT,
   deload_weeks INTEGER NOT NULL DEFAULT 1,
   hard_weeks INTEGER NOT NULL DEFAULT 6,
+  cycle_start_date DATE,
+  cycle_hard_weeks INTEGER,
+  cycle_deload_weeks INTEGER,
   created_at TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
