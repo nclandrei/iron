@@ -48,6 +48,15 @@ async function migrate() {
   `;
 
   console.log('003: Cycle override fields added.');
+
+  // Migration 004: Ensure updated_at column exists on user table
+  console.log('004: Ensuring updated_at column exists on user table...');
+
+  await sql`
+    ALTER TABLE "user" ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP NOT NULL DEFAULT NOW();
+  `;
+
+  console.log('004: updated_at column ensured.');
   console.log('Migrations complete!');
 }
 
