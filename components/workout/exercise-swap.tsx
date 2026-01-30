@@ -69,7 +69,7 @@ export function ExerciseSwap({ exercise, onSwap, disabled }: ExerciseSwapProps) 
       </Button>
 
       <Sheet open={isOpen} onOpenChange={setIsOpen}>
-        <SheetContent side="bottom" className="h-auto max-h-[70vh]">
+        <SheetContent side="bottom" className="h-auto max-h-[70vh] pb-24">
           {step === 'select' ? (
             <>
               <SheetHeader>
