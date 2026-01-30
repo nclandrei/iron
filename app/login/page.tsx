@@ -29,12 +29,20 @@ export default function LoginPage() {
                 password,
             });
 
+            console.log('Sign in result:', result);
+
             if (result.error) {
+                console.error('Sign in error:', result.error);
                 setError(result.error.message || 'Invalid email or password');
+            } else if (result.data) {
+                // Use hard navigation to ensure cookies are sent with the request
+                window.location.href = '/workout';
             } else {
-                router.push('/workout');
+                console.error('Unexpected sign in response:', result);
+                setError('Login failed. Please try again.');
             }
         } catch (err) {
+            console.error('Sign in exception:', err);
             setError('An error occurred. Please try again.');
         } finally {
             setIsLoading(false);
