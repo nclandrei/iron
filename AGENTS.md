@@ -15,6 +15,15 @@
 - **Validation**: Zod for schema validation
 - **Types**: Defined in `lib/types/`
 
+## Dev-Only Magic Login
+
+- Endpoint: `POST /api/auth/dev/magic-sign-in` (only in non-production)
+- Requires env flags (do not commit secrets):
+  - `MAGIC_LOGIN_ENABLED="true"`
+  - `MAGIC_LOGIN_EMAIL="andrei@nicolaeandrei.com"`
+  - `MAGIC_LOGIN_PASSWORD="..."` or leave unset to derive from `BETTER_AUTH_SECRET`
+- Implementation: [lib/auth/magic-login.ts](file:///Users/andrei-mihai.nicolae/Documents/iron/lib/auth/magic-login.ts)
+
 ## Code Style
 - Use `@/*` path aliases for imports (e.g., `@/lib/db/client`)
 - Components organized by feature: `components/{feature}/` (history, manage, workout)
