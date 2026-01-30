@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ExerciseEditor } from '@/components/manage/exercise-editor';
+import { ExerciseCombobox } from '@/components/ui/exercise-combobox';
 import { Plus, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { addExerciseAction } from './actions';
@@ -160,12 +161,17 @@ export default function ManagePage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="new-exercise-name">Exercise Name</Label>
-                    <Input
-                      id="new-exercise-name"
+                    <Label>Exercise Name</Label>
+                    <ExerciseCombobox
                       value={newExercise.name}
-                      onChange={(e) => setNewExercise({ ...newExercise, name: e.target.value })}
-                      placeholder="e.g. Bench Press"
+                      onValueChange={(name, exerciseDef) => {
+                        setNewExercise({
+                          ...newExercise,
+                          name,
+                          weight: exerciseDef ? exerciseDef.defaultWeight.toString() : newExercise.weight,
+                        });
+                      }}
+                      placeholder="Select exercise..."
                     />
                   </div>
 

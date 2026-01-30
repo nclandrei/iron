@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ExerciseCombobox } from '@/components/ui/exercise-combobox';
 import { Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -105,11 +106,15 @@ export function ExerciseEditor({ exercise, onDelete, onUpdate }: ExerciseEditorP
     <Card>
       <CardContent className="pt-6 space-y-4">
         <div className="space-y-2">
-          <Label htmlFor={`name-${exercise.id}`}>Exercise Name</Label>
-          <Input
-            id={`name-${exercise.id}`}
+          <Label>Exercise Name</Label>
+          <ExerciseCombobox
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onValueChange={(newName, exerciseDef) => {
+              setName(newName);
+              if (exerciseDef) {
+                setWeight(exerciseDef.defaultWeight.toString());
+              }
+            }}
           />
         </div>
 
